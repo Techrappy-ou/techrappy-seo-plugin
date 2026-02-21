@@ -1,130 +1,104 @@
 <?php
 /**
- * Plugin Name:       Techrappy SEO
- * Plugin URI:        https://techrappy.com/plugins/techrappy-seo
- * Description:       Plugin SEO intelligent avec intégration IA pour WordPress. Analyse, suggestions et optimisation automatisée du contenu.
- * Version:           1.0.0
- * Requires at least: 6.0
- * Requires PHP:      8.0
- * Author:            Techrappy
- * Author URI:        https://techrappy.com
- * License:           GPL v2 or later
- * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       techrappy-seo
- * Domain Path:       /languages
+ * Plugin Name: Techrappy SEO
+ * Plugin URI: https://techrappy.fr
+ * Description: Génération automatique de pages et articles SEO-ready avec Divi Builder et OpenAI.
+ * Version: 1.0.0
+ * Requires at least: 6.2
+ * Requires PHP: 8.0
+ * Author: Techrappy
+ * Author URI: https://techrappy.fr
+ * License: Proprietary
+ * Text Domain: techrappy-seo
+ * Domain Path: /languages
  *
  * @package TechrappySEO
  */
 
-defined( 'ABSPATH' ) || exit;
+declare( strict_types=1 );
 
-// Plugin version.
+// Sécurité : interdire l'accès direct au fichier.
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+// ─────────────────────────────────────────────
+// Constantes du plugin
+// ─────────────────────────────────────────────
+
+/** Version du plugin */
 define( 'TECHRAPPY_SEO_VERSION', '1.0.0' );
 
-// Absolute path to the plugin file.
-define( 'TECHRAPPY_SEO_PLUGIN_FILE', __FILE__ );
+/** Chemin absolu vers le répertoire racine du plugin (avec slash final) */
+define( 'TECHRAPPY_SEO_PATH', plugin_dir_path( __FILE__ ) );
 
-// Absolute path to the plugin directory (with trailing slash).
-define( 'TECHRAPPY_SEO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+/** URL publique vers le répertoire racine du plugin (avec slash final) */
+define( 'TECHRAPPY_SEO_URL', plugin_dir_url( __FILE__ ) );
 
-// URL to the plugin directory (with trailing slash).
-define( 'TECHRAPPY_SEO_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+/** Nom du fichier principal du plugin (pour register_activation_hook) */
+define( 'TECHRAPPY_SEO_BASENAME', plugin_basename( __FILE__ ) );
 
-// Plugin basename: folder/file.php.
-define( 'TECHRAPPY_SEO_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
+/** Préfixe utilisé pour toutes les options WordPress du plugin */
+define( 'TECHRAPPY_SEO_OPTION_PREFIX', 'techrappy_seo_' );
+
+/** Préfixe des tables de base de données custom */
+define( 'TECHRAPPY_SEO_DB_PREFIX', 'techrappy_seo_' );
+
+/** Capacité WordPress requise pour accéder au plugin */
+define( 'TECHRAPPY_SEO_CAPABILITY', 'manage_options' );
+
+// ─────────────────────────────────────────────
+// Autoloader PSR-4 minimal (sans Composer)
+// ─────────────────────────────────────────────
 
 /**
- * Load all plugin classes manually (no Composer required in V1).
- *
- * Classes are loaded in dependency order:
- * 1. Loader (no dependencies)
- * 2. Activator / Deactivator (no dependencies)
- * 3. Services (no WordPress hook dependencies)
- * 4. Admin / Frontend
- * 5. Plugin (depends on all of the above)
+ * Autoloader simple pour le namespace TechrappySEO\
+ * Mappe TechrappySEO\Foo\Bar → includes/Foo/Bar.php
  */
-function techrappy_seo_autoload(): void {
-	$classes = array(
-		// Core.
-		TECHRAPPY_SEO_PLUGIN_DIR . 'includes/Loader.php',
-		TECHRAPPY_SEO_PLUGIN_DIR . 'includes/Activator.php',
-		TECHRAPPY_SEO_PLUGIN_DIR . 'includes/Deactivator.php',
+spl_autoload_register( function ( string $class_name ): void {
+	// Namespace racine du plugin.
+	$namespace_prefix = 'TechrappySEO\\';
+	$prefix_length    = strlen( $namespace_prefix );
 
-		// Services — AI.
-		TECHRAPPY_SEO_PLUGIN_DIR . 'services/ai/ProviderInterface.php',
-		TECHRAPPY_SEO_PLUGIN_DIR . 'services/ai/AIClient.php',
-
-		// Services — SEO.
-		TECHRAPPY_SEO_PLUGIN_DIR . 'services/seo/ContentAnalyzer.php',
-		TECHRAPPY_SEO_PLUGIN_DIR . 'services/seo/SEOEngine.php',
-
-		// Services — Queue.
-		TECHRAPPY_SEO_PLUGIN_DIR . 'services/queue/Queue.php',
-		TECHRAPPY_SEO_PLUGIN_DIR . 'services/queue/QueueWorker.php',
-
-		// Services — Integrations.
-		TECHRAPPY_SEO_PLUGIN_DIR . 'services/integrations/YoastIntegration.php',
-		TECHRAPPY_SEO_PLUGIN_DIR . 'services/integrations/DiviIntegration.php',
-		TECHRAPPY_SEO_PLUGIN_DIR . 'services/integrations/BulkProcessor.php',
-
-		// Admin.
-		TECHRAPPY_SEO_PLUGIN_DIR . 'admin/MetaBox.php',
-		TECHRAPPY_SEO_PLUGIN_DIR . 'admin/Settings.php',
-		TECHRAPPY_SEO_PLUGIN_DIR . 'admin/Admin.php',
-
-		// Public / Frontend.
-		TECHRAPPY_SEO_PLUGIN_DIR . 'public/Frontend.php',
-
-		// Plugin orchestrator (must be last).
-		TECHRAPPY_SEO_PLUGIN_DIR . 'includes/Plugin.php',
-	);
-
-	foreach ( $classes as $file ) {
-		if ( file_exists( $file ) ) {
-			require_once $file;
-		}
+	// Vérifier que la classe appartient à notre namespace.
+	if ( strncmp( $namespace_prefix, $class_name, $prefix_length ) !== 0 ) {
+		return;
 	}
-}
-techrappy_seo_autoload();
+
+	// Extraire la partie relative du namespace.
+	$relative_class = substr( $class_name, $prefix_length );
+
+	// Construire le chemin complet du fichier.
+	$file = TECHRAPPY_SEO_PATH . 'includes/' . str_replace( '\\', '/', $relative_class ) . '.php';
+
+	if ( file_exists( $file ) ) {
+		require_once $file;
+	}
+} );
+
+// ─────────────────────────────────────────────
+// Hooks d'activation / désactivation
+// ─────────────────────────────────────────────
+
+register_activation_hook( __FILE__, function (): void {
+	require_once TECHRAPPY_SEO_PATH . 'includes/Core/Activator.php';
+	TechrappySEO\Core\Activator::activate();
+} );
+
+register_deactivation_hook( __FILE__, function (): void {
+	require_once TECHRAPPY_SEO_PATH . 'includes/Core/Deactivator.php';
+	TechrappySEO\Core\Deactivator::deactivate();
+} );
+
+// ─────────────────────────────────────────────
+// Lancement du plugin
+// ─────────────────────────────────────────────
 
 /**
- * Activation hook.
- *
- * @return void
+ * Retourne l'instance unique du plugin (Singleton).
+ * Appelé sur le hook 'plugins_loaded' pour garantir
+ * que WordPress et les autres plugins sont chargés.
  */
-function techrappy_seo_activate(): void {
-	\TechrappySEO\Activator::activate();
-}
-register_activation_hook( TECHRAPPY_SEO_PLUGIN_FILE, 'techrappy_seo_activate' );
-
-/**
- * Deactivation hook.
- *
- * @return void
- */
-function techrappy_seo_deactivate(): void {
-	\TechrappySEO\Deactivator::deactivate();
-}
-register_deactivation_hook( TECHRAPPY_SEO_PLUGIN_FILE, 'techrappy_seo_deactivate' );
-
-/**
- * Bootstrap the plugin after all plugins are loaded.
- *
- * Using `plugins_loaded` ensures compatibility with plugins this one integrates
- * with (Yoast SEO, Divi Builder, etc.).
- *
- * @return void
- */
-function techrappy_seo_init(): void {
-	// Load plugin textdomain for translations.
-	load_plugin_textdomain(
-		'techrappy-seo',
-		false,
-		dirname( TECHRAPPY_SEO_PLUGIN_BASENAME ) . '/languages/'
-	);
-
-	// Run the plugin.
-	$plugin = new \TechrappySEO\Plugin();
-	$plugin->run();
-}
-add_action( 'plugins_loaded', 'techrappy_seo_init' );
+add_action( 'plugins_loaded', function (): void {
+	TechrappySEO\Core\Plugin::get_instance();
+} );
