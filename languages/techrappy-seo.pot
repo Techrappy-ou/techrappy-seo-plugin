@@ -1,0 +1,100 @@
+# Copyright (C) 2024 Techrappy
+# This file is distributed under the Proprietary license.
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Techrappy SEO 1.0.0\n"
+"Report-Msgid-Bugs-To: https://techrappy.fr\n"
+"POT-Creation-Date: 2024-01-01 00:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: WP-CLI 2.x\n"
+"X-Domain: techrappy-seo\n"
+
+#. Plugin Name of the plugin
+msgid "Techrappy SEO"
+msgstr ""
+
+#. Plugin URI of the plugin
+msgid "https://techrappy.fr"
+msgstr ""
+
+#. Description of the plugin
+msgid "Génération automatique de pages et articles SEO-ready avec Divi Builder et OpenAI."
+msgstr ""
+
+#. Author of the plugin
+msgid "Techrappy"
+msgstr ""
+
+#: includes/Admin/AdminMenu.php
+msgid "Nouvelle génération"
+msgstr ""
+
+#: includes/Admin/AdminMenu.php
+msgid "Audit de templates"
+msgstr ""
+
+#: includes/Admin/AdminMenu.php
+msgid "Jobs en masse"
+msgstr ""
+
+#: includes/Admin/AdminMenu.php
+msgid "Prompt Studio"
+msgstr ""
+
+#: includes/Admin/AdminMenu.php
+msgid "Réglages"
+msgstr ""
+
+#: includes/Admin/AdminMenu.php
+#: includes/Admin/Ajax/AjaxWizard.php
+#: includes/Admin/Ajax/AjaxGeneration.php
+#: includes/Admin/Ajax/AjaxBulk.php
+#: includes/Admin/Ajax/AjaxTemplateAudit.php
+#: includes/Admin/Ajax/AjaxPromptStudio.php
+#: includes/Admin/Ajax/AjaxSettings.php
+msgid "Accès non autorisé."
+msgstr ""
+
+#: includes/Admin/AdminAssets.php
+msgid "Chargement..."
+msgstr ""
+
+#: includes/Admin/AdminAssets.php
+msgid "Une erreur est survenue."
+msgstr ""
+
+#: includes/Admin/AdminAssets.php
+msgid "Succès !"
+msgstr ""
+
+#: includes/Admin/AdminAssets.php
+msgid "Êtes-vous sûr de vouloir lancer la génération en masse ?"
+msgstr ""
+
+#: includes/Settings/SettingsValidator.php
+msgid "La clé API OpenAI semble invalide (doit commencer par \"sk-\")."
+msgstr ""
+
+#: includes/Settings/SettingsValidator.php
+msgid "Modèle OpenAI non reconnu."
+msgstr ""
+
+#: includes/Settings/SettingsValidator.php
+msgid "La température doit être entre 0 et 2."
+msgstr ""
+
+#: includes/Settings/SettingsValidator.php
+msgid "Max tokens doit être entre 256 et 16000."
+msgstr ""
+
+#: includes/Settings/SettingsValidator.php
+msgid "Le timeout doit être entre 10 et 300 secondes."
+msgstr ""
