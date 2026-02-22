@@ -1,6 +1,6 @@
 <?php
 /**
- * Étape du pipeline : StepConclusion.
+ * Étape du pipeline : Rédaction de la conclusion et du CTA.
  *
  * @package TechrappySEO\AI\Pipeline\Steps
  */
@@ -9,7 +9,10 @@ declare( strict_types=1 );
 
 namespace TechrappySEO\AI\Pipeline\Steps;
 
+use TechrappySEO\AI\AIClient;
 use TechrappySEO\AI\Pipeline\StepInterface;
+use TechrappySEO\AI\PromptManager;
+use TechrappySEO\AI\PromptRenderer;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -17,29 +20,45 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Class StepConclusion
+ *
+ * Étape 5 : génère 2 variantes de conclusion (douce/pro) + 1 CTA
+ * + 3 suggestions de titres H2 de fin.
  */
 class StepConclusion implements StepInterface {
 
-    /**
-     * Exécute l'étape du pipeline.
-     *
-     * @param array<string, mixed>       $job    Données du job.
-     * @param \TechrappySEO\Utils\Logger $logger Logger du job.
-     *
-     * @return array<string, mixed>
-     */
     public function run( array $job, \TechrappySEO\Utils\Logger $logger ): array {
-        // TODO : implémenter l'étape StepConclusion.
-        $logger->info( 'StepConclusion', 'Étape à implémenter.' );
-        return [];
+        $manager  = new PromptManager();
+        $renderer = new PromptRenderer();
+        $client   = new AIClient();
+        $client->set_logger( $logger );
+
+        $prompt_data = $manager->get( 'conclusion_cta' );
+        if ( ! $prompt_data ) {
+            $logger->error( 'conclusion_cta', 'Prompt "conclusion_cta" introuvable en base.' );
+            return [];
+        }
+
+        $plan_data = $job['steps']['plan']['data'] ?? [];
+        $h1        = $plan_data['H1'] ?? '';
+        $plan_json = ! empty( $plan_data ) ? wp_json_encode( $plan_data ) : '{}';
+
+        $prompt = $renderer->render( $prompt_data['content'], [
+            'mot_cle'   => $job['keyword'] ?? '',
+            'H1'        => $h1,
+            'plan_json' => $plan_json,
+        ] );
+
+        $result = $client->complete_json( $prompt, $job['_system_prompt'] ?? '' );
+
+        if ( ! $result ) {
+            $logger->error( 'conclusion_cta', 'Aucune réponse de l\'API OpenAI.' );
+            return [];
+        }
+
+        return $result;
     }
 
-    /**
-     * Retourne le nom de l'étape.
-     *
-     * @return string
-     */
     public function get_name(): string {
-        return 'StepConclusion';
+        return 'conclusion_cta';
     }
 }

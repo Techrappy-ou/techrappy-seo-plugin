@@ -1,6 +1,6 @@
 <?php
 /**
- * Étape du pipeline : StepIntro.
+ * Étape du pipeline : Rédaction de l'introduction.
  *
  * @package TechrappySEO\AI\Pipeline\Steps
  */
@@ -9,7 +9,10 @@ declare( strict_types=1 );
 
 namespace TechrappySEO\AI\Pipeline\Steps;
 
+use TechrappySEO\AI\AIClient;
 use TechrappySEO\AI\Pipeline\StepInterface;
+use TechrappySEO\AI\PromptManager;
+use TechrappySEO\AI\PromptRenderer;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -17,29 +20,45 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Class StepIntro
+ *
+ * Étape 3 : rédige l'introduction SEO (120-180 mots) avec le mot-clé
+ * dans les premières phrases et une transition vers le 1er H2.
  */
 class StepIntro implements StepInterface {
 
-    /**
-     * Exécute l'étape du pipeline.
-     *
-     * @param array<string, mixed>       $job    Données du job.
-     * @param \TechrappySEO\Utils\Logger $logger Logger du job.
-     *
-     * @return array<string, mixed>
-     */
     public function run( array $job, \TechrappySEO\Utils\Logger $logger ): array {
-        // TODO : implémenter l'étape StepIntro.
-        $logger->info( 'StepIntro', 'Étape à implémenter.' );
-        return [];
+        $manager  = new PromptManager();
+        $renderer = new PromptRenderer();
+        $client   = new AIClient();
+        $client->set_logger( $logger );
+
+        $prompt_data = $manager->get( 'intro' );
+        if ( ! $prompt_data ) {
+            $logger->error( 'intro', 'Prompt "intro" introuvable en base.' );
+            return [];
+        }
+
+        $plan_data = $job['steps']['plan']['data'] ?? [];
+        $h1        = $plan_data['H1'] ?? '';
+        $plan_json = ! empty( $plan_data ) ? wp_json_encode( $plan_data ) : '{}';
+
+        $prompt = $renderer->render( $prompt_data['content'], [
+            'mot_cle'   => $job['keyword'] ?? '',
+            'H1'        => $h1,
+            'plan_json' => $plan_json,
+        ] );
+
+        $result = $client->complete_json( $prompt, $job['_system_prompt'] ?? '' );
+
+        if ( ! $result ) {
+            $logger->error( 'intro', 'Aucune réponse de l\'API OpenAI.' );
+            return [];
+        }
+
+        return $result;
     }
 
-    /**
-     * Retourne le nom de l'étape.
-     *
-     * @return string
-     */
     public function get_name(): string {
-        return 'StepIntro';
+        return 'intro';
     }
 }

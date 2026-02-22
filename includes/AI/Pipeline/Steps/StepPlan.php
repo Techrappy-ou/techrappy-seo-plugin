@@ -1,6 +1,6 @@
 <?php
 /**
- * Étape du pipeline : StepPlan.
+ * Étape du pipeline : Génération du plan SEO.
  *
  * @package TechrappySEO\AI\Pipeline\Steps
  */
@@ -9,7 +9,10 @@ declare( strict_types=1 );
 
 namespace TechrappySEO\AI\Pipeline\Steps;
 
+use TechrappySEO\AI\AIClient;
 use TechrappySEO\AI\Pipeline\StepInterface;
+use TechrappySEO\AI\PromptManager;
+use TechrappySEO\AI\PromptRenderer;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -17,29 +20,46 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Class StepPlan
+ *
+ * Étape 2 : génère le plan H1/H2/H3 complet basé sur l'intention analysée.
+ * Résultat affiché en UI éditable avant de continuer.
  */
 class StepPlan implements StepInterface {
 
-    /**
-     * Exécute l'étape du pipeline.
-     *
-     * @param array<string, mixed>       $job    Données du job.
-     * @param \TechrappySEO\Utils\Logger $logger Logger du job.
-     *
-     * @return array<string, mixed>
-     */
     public function run( array $job, \TechrappySEO\Utils\Logger $logger ): array {
-        // TODO : implémenter l'étape StepPlan.
-        $logger->info( 'StepPlan', 'Étape à implémenter.' );
-        return [];
+        $manager  = new PromptManager();
+        $renderer = new PromptRenderer();
+        $client   = new AIClient();
+        $client->set_logger( $logger );
+
+        $prompt_data = $manager->get( 'plan' );
+        if ( ! $prompt_data ) {
+            $logger->error( 'plan', 'Prompt "plan" introuvable en base.' );
+            return [];
+        }
+
+        // Récupérer intent_json depuis l'étape précédente.
+        $intent_data = $job['steps']['intent']['data'] ?? [];
+        $intent_json = ! empty( $intent_data ) ? wp_json_encode( $intent_data ) : '{}';
+
+        $prompt = $renderer->render( $prompt_data['content'], [
+            'mot_cle'    => $job['keyword'] ?? '',
+            'profession' => $job['profession'] ?? '',
+            'intent_json' => $intent_json,
+            'city'       => $job['city'] ?? '',
+        ] );
+
+        $result = $client->complete_json( $prompt, $job['_system_prompt'] ?? '' );
+
+        if ( ! $result ) {
+            $logger->error( 'plan', 'Aucune réponse de l\'API OpenAI.' );
+            return [];
+        }
+
+        return $result;
     }
 
-    /**
-     * Retourne le nom de l'étape.
-     *
-     * @return string
-     */
     public function get_name(): string {
-        return 'StepPlan';
+        return 'plan';
     }
 }

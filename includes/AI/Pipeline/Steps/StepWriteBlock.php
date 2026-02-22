@@ -1,6 +1,6 @@
 <?php
 /**
- * Étape du pipeline : StepWriteBlock.
+ * Étape du pipeline : Rédaction d'un bloc de contenu H2.
  *
  * @package TechrappySEO\AI\Pipeline\Steps
  */
@@ -9,7 +9,10 @@ declare( strict_types=1 );
 
 namespace TechrappySEO\AI\Pipeline\Steps;
 
+use TechrappySEO\AI\AIClient;
 use TechrappySEO\AI\Pipeline\StepInterface;
+use TechrappySEO\AI\PromptManager;
+use TechrappySEO\AI\PromptRenderer;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -17,29 +20,46 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Class StepWriteBlock
+ *
+ * Étape 4 : rédige un bloc de contenu (180-260 mots) pour un H2 donné.
+ * Appelée en boucle par PipelineRunner, une fois par bloc de blocks_list.
+ * Le bloc courant est passé via $job['_current_block'].
  */
 class StepWriteBlock implements StepInterface {
 
-    /**
-     * Exécute l'étape du pipeline.
-     *
-     * @param array<string, mixed>       $job    Données du job.
-     * @param \TechrappySEO\Utils\Logger $logger Logger du job.
-     *
-     * @return array<string, mixed>
-     */
     public function run( array $job, \TechrappySEO\Utils\Logger $logger ): array {
-        // TODO : implémenter l'étape StepWriteBlock.
-        $logger->info( 'StepWriteBlock', 'Étape à implémenter.' );
-        return [];
+        $manager  = new PromptManager();
+        $renderer = new PromptRenderer();
+        $client   = new AIClient();
+        $client->set_logger( $logger );
+
+        $prompt_data = $manager->get( 'block_write' );
+        if ( ! $prompt_data ) {
+            $logger->error( 'block_write', 'Prompt "block_write" introuvable en base.' );
+            return [];
+        }
+
+        // Le bloc courant est injecté par PipelineRunner::execute_block_write_loop().
+        $bloc      = $job['_current_block'] ?? [];
+        $bloc_json = ! empty( $bloc ) ? wp_json_encode( $bloc ) : '{}';
+
+        $prompt = $renderer->render( $prompt_data['content'], [
+            'mot_cle'    => $job['keyword'] ?? '',
+            'profession' => $job['profession'] ?? '',
+            'bloc_json'  => $bloc_json,
+        ] );
+
+        $result = $client->complete_json( $prompt, $job['_system_prompt'] ?? '' );
+
+        if ( ! $result ) {
+            $logger->error( 'block_write', 'Aucune réponse de l\'API OpenAI pour le bloc : ' . ( $bloc['H2'] ?? '?' ) );
+            return [];
+        }
+
+        return $result;
     }
 
-    /**
-     * Retourne le nom de l'étape.
-     *
-     * @return string
-     */
     public function get_name(): string {
-        return 'StepWriteBlock';
+        return 'block_write';
     }
 }

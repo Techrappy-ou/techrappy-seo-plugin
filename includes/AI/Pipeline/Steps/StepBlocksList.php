@@ -1,6 +1,6 @@
 <?php
 /**
- * Étape du pipeline : StepBlocksList.
+ * Étape du pipeline : Liste des blocs à rédiger.
  *
  * @package TechrappySEO\AI\Pipeline\Steps
  */
@@ -9,7 +9,10 @@ declare( strict_types=1 );
 
 namespace TechrappySEO\AI\Pipeline\Steps;
 
+use TechrappySEO\AI\AIClient;
 use TechrappySEO\AI\Pipeline\StepInterface;
+use TechrappySEO\AI\PromptManager;
+use TechrappySEO\AI\PromptRenderer;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -17,29 +20,42 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Class StepBlocksList
+ *
+ * Étape 2B : à partir du plan, produit la liste ordonnée des blocs à rédiger
+ * et le nombre de sections répétables Divi nécessaires.
  */
 class StepBlocksList implements StepInterface {
 
-    /**
-     * Exécute l'étape du pipeline.
-     *
-     * @param array<string, mixed>       $job    Données du job.
-     * @param \TechrappySEO\Utils\Logger $logger Logger du job.
-     *
-     * @return array<string, mixed>
-     */
     public function run( array $job, \TechrappySEO\Utils\Logger $logger ): array {
-        // TODO : implémenter l'étape StepBlocksList.
-        $logger->info( 'StepBlocksList', 'Étape à implémenter.' );
-        return [];
+        $manager  = new PromptManager();
+        $renderer = new PromptRenderer();
+        $client   = new AIClient();
+        $client->set_logger( $logger );
+
+        $prompt_data = $manager->get( 'blocks_list' );
+        if ( ! $prompt_data ) {
+            $logger->error( 'blocks_list', 'Prompt "blocks_list" introuvable en base.' );
+            return [];
+        }
+
+        $plan_data = $job['steps']['plan']['data'] ?? [];
+        $plan_json = ! empty( $plan_data ) ? wp_json_encode( $plan_data ) : '{}';
+
+        $prompt = $renderer->render( $prompt_data['content'], [
+            'plan_json' => $plan_json,
+        ] );
+
+        $result = $client->complete_json( $prompt, $job['_system_prompt'] ?? '' );
+
+        if ( ! $result ) {
+            $logger->error( 'blocks_list', 'Aucune réponse de l\'API OpenAI.' );
+            return [];
+        }
+
+        return $result;
     }
 
-    /**
-     * Retourne le nom de l'étape.
-     *
-     * @return string
-     */
     public function get_name(): string {
-        return 'StepBlocksList';
+        return 'blocks_list';
     }
 }
