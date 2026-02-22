@@ -1,10 +1,13 @@
 <?php
-// views/admin/prompt-studio/history.php
-// Rôle : afficher l'historique des versions d'un prompt.
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
+/**
+ * Vue partielle : historique des versions d'un prompt.
+ *
+ * @package TechrappySEO
+ */
+
+if ( ! defined( 'ABSPATH' ) ) { exit; }
 ?>
-<div class="techrappy-prompt-history">
-    <p><?php esc_html_e( 'Historique des prompts — à implémenter.', 'techrappy-seo' ); ?></p>
+<div id="ps-history">
+    <p class="description"><?php esc_html_e( 'Historique des modifications (10 dernières versions conservées).', 'techrappy-seo' ); ?></p>
+    <div id="ps-history-list"></div>
 </div>

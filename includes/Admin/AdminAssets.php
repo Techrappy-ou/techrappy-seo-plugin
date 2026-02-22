@@ -113,7 +113,8 @@ class AdminAssets {
      */
     private function get_localized_data(): array {
         return [
-            'ajax_url' => admin_url( 'admin-ajax.php' ),
+            'ajax_url'  => admin_url( 'admin-ajax.php' ),
+            'admin_url' => admin_url(),
             'nonces'   => [
                 'wizard'        => wp_create_nonce( 'techrappy_seo_wizard' ),
                 'generation'    => wp_create_nonce( 'techrappy_seo_generation' ),
