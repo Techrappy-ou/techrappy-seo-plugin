@@ -187,13 +187,17 @@ jQuery(function($) {
             function(res) {
                 $btn.prop('disabled', false);
                 $spinner.removeClass('is-active');
-                $('#techrappy-settings-notice').html('<div class="notice notice-success is-dismissible"><p>' + res.message + '</p></div>');
+                // Utiliser .text() pour éviter toute injection XSS depuis la réponse serveur.
+                var $ok = $('<div class="notice notice-success is-dismissible">').append($('<p>').text(res.message || ''));
+                $('#techrappy-settings-notice').empty().append($ok);
             },
             function(err) {
                 $btn.prop('disabled', false);
                 $spinner.removeClass('is-active');
-                var msg = (err && err.errors) ? JSON.stringify(err.errors) : (err && err.message ? err.message : '<?php echo esc_js( __( 'Erreur inconnue.', 'techrappy-seo' ) ); ?>');
-                $('#techrappy-settings-notice').html('<div class="notice notice-error is-dismissible"><p>' + msg + '</p></div>');
+                var msgText = (err && err.errors) ? JSON.stringify(err.errors) : (err && err.message ? err.message : '<?php echo esc_js( __( 'Erreur inconnue.', 'techrappy-seo' ) ); ?>');
+                // Utiliser .text() pour éviter toute injection XSS depuis la réponse serveur.
+                var $err = $('<div class="notice notice-error is-dismissible">').append($('<p>').text(msgText));
+                $('#techrappy-settings-notice').empty().append($err);
             }
         );
     });

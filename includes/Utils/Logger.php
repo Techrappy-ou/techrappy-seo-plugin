@@ -78,9 +78,25 @@ class Logger {
                 $this->job_id,
                 strtoupper( $level ),
                 $step,
-                $message
+                $this->redact_sensitive( $message )
             ) );
         }
+    }
+
+    /**
+     * Masque les données sensibles (clés API, tokens) dans un message de log.
+     *
+     * @param string $message Message brut.
+     *
+     * @return string Message avec les données sensibles remplacées par [REDACTED].
+     */
+    private function redact_sensitive( string $message ): string {
+        // Masquer les clés API OpenAI (format sk-… ou sk-proj-…).
+        $message = preg_replace( '/sk-[A-Za-z0-9\-_]{10,}/', '[REDACTED]', $message ) ?? $message;
+        // Masquer toute chaîne ressemblant à Bearer <token>.
+        $message = preg_replace( '/Bearer\s+[A-Za-z0-9\-_.~+\/]{10,}/', 'Bearer [REDACTED]', $message ) ?? $message;
+
+        return $message;
     }
 
     /**

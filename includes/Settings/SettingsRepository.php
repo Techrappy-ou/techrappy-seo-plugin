@@ -4,7 +4,7 @@
  *
  * Responsabilité : lecture/écriture centralisée des wp_options du plugin.
  * Toutes les options sont stockées avec autoload=no pour la performance.
- * La clé API OpenAI bénéficie d'un chiffrement basique (base64 + XOR).
+ * La clé API OpenAI est chiffrée via AES-256-CBC (clé dérivée de AUTH_KEY + AUTH_SALT).
  *
  * @package TechrappySEO\Settings
  */
@@ -128,8 +128,8 @@ class SettingsRepository {
 
     /**
      * Sauvegarde la clé API OpenAI de manière sécurisée.
-     * La clé est obfusquée avant stockage (base64 uniquement en V1,
-     * prévoir chiffrement AES en V2 avec clé dérivée de AUTH_KEY).
+     * La clé est chiffrée via AES-256-CBC avec une clé dérivée des constantes WP
+     * AUTH_KEY + AUTH_SALT (définies dans wp-config.php, propres à chaque site).
      *
      * @param string $api_key Clé API en clair.
      *
@@ -140,17 +140,13 @@ class SettingsRepository {
             return self::update( [ 'openai_api_key' => '' ] );
         }
 
-        // Obfuscation V1 : base64 encode (non-chiffrement, juste masquage visuel).
-        // TODO V2 : chiffrement AES-256 avec clé dérivée de AUTH_KEY + AUTH_SALT.
-        $obfuscated = base64_encode( $api_key ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
-
-        return self::update( [ 'openai_api_key' => $obfuscated ] );
+        return self::update( [ 'openai_api_key' => self::encrypt_value( $api_key ) ] );
     }
 
     /**
      * Récupère la clé API OpenAI en clair.
      *
-     * @return string Clé API désobfusquée, ou chaîne vide si non configurée.
+     * @return string Clé API déchiffrée, ou chaîne vide si non configurée.
      */
     public static function get_api_key(): string {
         $stored = self::get( 'openai_api_key', '' );
@@ -159,10 +155,74 @@ class SettingsRepository {
             return '';
         }
 
-        // Désobfuscation V1.
-        $decoded = base64_decode( $stored, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
+        return self::decrypt_value( $stored );
+    }
 
-        return ( false !== $decoded ) ? $decoded : '';
+    /**
+     * Chiffre une valeur sensible avec AES-256-CBC.
+     * Préfixe « aes: » pour distinguer des anciennes valeurs base64 brutes.
+     * Repli sur base64 seul si openssl_encrypt n'est pas disponible.
+     *
+     * @param string $plain Valeur en clair.
+     *
+     * @return string Valeur chiffrée (ou obfusquée en fallback).
+     */
+    private static function encrypt_value( string $plain ): string {
+        if ( function_exists( 'openssl_encrypt' ) && defined( 'AUTH_KEY' ) && defined( 'AUTH_SALT' ) ) {
+            // Clé de 32 octets dérivée des secrets WP (propres à chaque installation).
+            $key = hash( 'sha256', AUTH_KEY . AUTH_SALT, true );
+            $iv  = openssl_random_pseudo_bytes( 16 );
+            $enc = openssl_encrypt( $plain, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv );
+
+            if ( false !== $enc ) {
+                // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+                return 'aes:' . base64_encode( $iv . $enc );
+            }
+        }
+
+        // Fallback : base64 simple (pas de chiffrement, uniquement si openssl absent).
+        // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+        return 'b64:' . base64_encode( $plain );
+    }
+
+    /**
+     * Déchiffre une valeur stockée par encrypt_value().
+     * Gère les trois formats : « aes: », « b64: » et l'ancien format base64 brut (V1).
+     *
+     * @param string $stored Valeur telle que stockée en base.
+     *
+     * @return string Valeur en clair, ou chaîne vide en cas d'échec.
+     */
+    private static function decrypt_value( string $stored ): string {
+        if ( str_starts_with( $stored, 'aes:' ) ) {
+            if ( ! function_exists( 'openssl_decrypt' ) || ! defined( 'AUTH_KEY' ) || ! defined( 'AUTH_SALT' ) ) {
+                return '';
+            }
+
+            // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
+            $raw = base64_decode( substr( $stored, 4 ), true );
+            if ( false === $raw || strlen( $raw ) < 17 ) {
+                return '';
+            }
+
+            $key = hash( 'sha256', AUTH_KEY . AUTH_SALT, true );
+            $iv  = substr( $raw, 0, 16 );
+            $enc = substr( $raw, 16 );
+            $dec = openssl_decrypt( $enc, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv );
+
+            return ( false !== $dec ) ? $dec : '';
+        }
+
+        if ( str_starts_with( $stored, 'b64:' ) ) {
+            // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
+            $dec = base64_decode( substr( $stored, 4 ), true );
+            return ( false !== $dec ) ? $dec : '';
+        }
+
+        // Legacy V1 : base64 brut sans préfixe.
+        // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
+        $dec = base64_decode( $stored, true );
+        return ( false !== $dec ) ? $dec : '';
     }
 
     /**
@@ -175,9 +235,9 @@ class SettingsRepository {
         $current_api_key = self::get_api_key();
         $defaults        = self::$defaults;
 
-        // Réenregistrer la clé API existante.
+        // Réenregistrer la clé API existante (re-chiffrée).
         if ( ! empty( $current_api_key ) ) {
-            $defaults['openai_api_key'] = base64_encode( $current_api_key ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+            $defaults['openai_api_key'] = self::encrypt_value( $current_api_key );
         }
 
         // Invalider le cache.

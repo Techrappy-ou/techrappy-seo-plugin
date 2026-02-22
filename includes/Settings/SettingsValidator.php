@@ -125,6 +125,16 @@ class SettingsValidator {
             $this->sanitized['bulk_max_cities'] = min( absint( $raw_data['bulk_max_cities'] ), 200 );
         }
 
+        // Rétention des logs (int entre 1 et 365 jours).
+        if ( isset( $raw_data['log_retention_days'] ) ) {
+            $days = absint( $raw_data['log_retention_days'] );
+            if ( $days < 1 || $days > 365 ) {
+                $this->errors['log_retention_days'] = __( 'La rétention des logs doit être entre 1 et 365 jours.', 'techrappy-seo' );
+            } else {
+                $this->sanitized['log_retention_days'] = $days;
+            }
+        }
+
         // Flags booléens.
         $bool_fields = [ 'debug_mode', 'qa_gate_enabled' ];
         foreach ( $bool_fields as $field ) {
