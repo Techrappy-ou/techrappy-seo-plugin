@@ -43,9 +43,18 @@ class PostWriter {
         $wp_params = is_array( $job['wp_params'] ) ? $job['wp_params'] : [];
         $h1        = $tokens['H1'] ?? $job['keyword'] ?? '';
 
+        // Si un template Divi est configuré, cloner et injecter les tokens.
+        $template_post_id = absint( $job['template_post_id'] ?? 0 );
+        if ( $template_post_id > 0 ) {
+            $divi         = new \TechrappySEO\Divi\DiviTemplateHandler();
+            $post_content = $divi->clone_and_inject( $template_post_id, $assembled );
+        } else {
+            $post_content = $assembled['raw_html'];
+        }
+
         $post_args = [
             'post_title'   => sanitize_text_field( $h1 ),
-            'post_content' => $assembled['raw_html'],
+            'post_content' => $post_content,
             'post_status'  => sanitize_key( $job['publish_status'] ?? 'draft' ),
             'post_type'    => sanitize_key( $job['type'] ?? 'page' ),
             'post_name'    => $slug,

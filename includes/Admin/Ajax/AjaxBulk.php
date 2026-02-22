@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace TechrappySEO\Admin\Ajax;
 
+use TechrappySEO\Geo\VillesVoisinesClient;
 use TechrappySEO\Jobs\BulkJobManager;
 use TechrappySEO\Jobs\JobRepository;
 
@@ -42,15 +43,18 @@ class AjaxBulk {
             wp_send_json_error( [ 'message' => __( 'Ville principale requise.', 'techrappy-seo' ) ], 400 );
         }
 
-        // VillesVoisinesClient n'est pas encore implémenté.
-        // On retourne la ville principale seule pour débloquer l'UI.
-        $cities = [
-            [ 'city' => $ville_principale, 'cp' => '' ],
-        ];
+        $limit  = (int) \TechrappySEO\Settings\SettingsRepository::get( 'bulk_max_cities', 50 );
+        $client = new VillesVoisinesClient();
+        $cities = $client->get_nearby_cities( $ville_principale, $radius_km, $limit );
+
+        // Fallback : toujours inclure la ville principale si l'API ne la retourne pas.
+        $found = array_column( $cities, 'city' );
+        if ( ! in_array( $ville_principale, $found, true ) ) {
+            array_unshift( $cities, [ 'city' => $ville_principale, 'cp' => '', 'distance' => 0.0 ] );
+        }
 
         /**
-         * Filtre permettant à VillesVoisinesClient d'étendre la liste
-         * quand il sera implémenté.
+         * Filtre pour personnaliser la liste de villes.
          *
          * @param array<int, array{city: string, cp: string}> $cities
          * @param string $ville_principale

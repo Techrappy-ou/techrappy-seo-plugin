@@ -9,6 +9,10 @@ declare( strict_types=1 );
 
 namespace TechrappySEO\Admin\Ajax;
 
+use TechrappySEO\Divi\DiviTemplateHandler;
+use TechrappySEO\Templates\TemplateAuditor;
+use TechrappySEO\Templates\TemplateMappingRepository;
+
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
@@ -30,8 +34,21 @@ class AjaxTemplateAudit {
             wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
         }
 
-        // TODO : implémenter le scan de template.
-        wp_send_json_success( [ 'tokens_found' => [], 'tokens_missing' => [] ] );
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $post_id = absint( $_POST['post_id'] ?? 0 );
+
+        if ( ! $post_id ) {
+            wp_send_json_error( [ 'message' => __( 'post_id manquant.', 'techrappy-seo' ) ], 400 );
+        }
+
+        $auditor = new TemplateAuditor();
+        $result  = $auditor->audit( $post_id );
+
+        // Récupérer le mapping existant pour ce template.
+        $mapping_repo = new TemplateMappingRepository();
+        $result['existing_mapping'] = $mapping_repo->get( $post_id );
+
+        wp_send_json_success( $result );
     }
 
     /**
@@ -46,7 +63,40 @@ class AjaxTemplateAudit {
             wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
         }
 
-        // TODO : implémenter sauvegarde mapping.
-        wp_send_json_success( [ 'saved' => true ] );
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $post_id = absint( $_POST['post_id'] ?? 0 );
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $raw_mapping = $_POST['mapping'] ?? [];
+
+        if ( ! $post_id ) {
+            wp_send_json_error( [ 'message' => __( 'post_id manquant.', 'techrappy-seo' ) ], 400 );
+        }
+
+        if ( ! is_array( $raw_mapping ) ) {
+            wp_send_json_error( [ 'message' => __( 'Mapping invalide.', 'techrappy-seo' ) ], 400 );
+        }
+
+        // Sanitizer le mapping.
+        $mapping = [];
+        foreach ( $raw_mapping as $token => $source ) {
+            $token = sanitize_key( $token );
+            $source = sanitize_text_field( $source );
+            if ( $token && $source ) {
+                $mapping[ $token ] = $source;
+            }
+        }
+
+        $repo   = new TemplateMappingRepository();
+        $saved  = $repo->save( $post_id, $mapping );
+
+        if ( ! $saved ) {
+            wp_send_json_error( [ 'message' => __( 'Erreur lors de la sauvegarde.', 'techrappy-seo' ) ], 500 );
+        }
+
+        wp_send_json_success( [
+            'saved'   => true,
+            'post_id' => $post_id,
+            'mapping' => $mapping,
+        ] );
     }
 }
