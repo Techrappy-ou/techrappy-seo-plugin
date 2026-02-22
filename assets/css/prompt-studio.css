@@ -1,0 +1,35 @@
+/* assets/css/prompt-studio.css — Techrappy SEO Prompt Studio */
+
+.techrappy-prompt-editor {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.techrappy-prompt-list {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.techrappy-prompt-list-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+}
+
+.techrappy-prompt-list-item:hover,
+.techrappy-prompt-list-item.active {
+    background: #f0f6ff;
+}
+
+.techrappy-prompt-textarea {
+    width: 100%;
+    min-height: 300px;
+    font-family: monospace;
+    font-size: 13px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+}
