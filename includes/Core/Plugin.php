@@ -134,8 +134,10 @@ final class Plugin {
 
         // Audit de templates.
         $ajax_audit = new \TechrappySEO\Admin\Ajax\AjaxTemplateAudit();
-        $this->loader->add_action( 'wp_ajax_techrappy_scan_template', $ajax_audit, 'handle_scan' );
-        $this->loader->add_action( 'wp_ajax_techrappy_save_mapping', $ajax_audit, 'handle_save_mapping' );
+        $this->loader->add_action( 'wp_ajax_techrappy_scan_template',   $ajax_audit, 'handle_scan' );
+        $this->loader->add_action( 'wp_ajax_techrappy_save_mapping',    $ajax_audit, 'handle_save_mapping' );
+        $this->loader->add_action( 'wp_ajax_techrappy_export_template', $ajax_audit, 'handle_export_template' );
+        $this->loader->add_action( 'wp_ajax_techrappy_import_template', $ajax_audit, 'handle_import_template' );
 
         // Prompt Studio.
         $ajax_prompts = new \TechrappySEO\Admin\Ajax\AjaxPromptStudio();
@@ -146,6 +148,11 @@ final class Plugin {
         // Settings.
         $ajax_settings = new \TechrappySEO\Admin\Ajax\AjaxSettings();
         $this->loader->add_action( 'wp_ajax_techrappy_save_settings', $ajax_settings, 'handle_save' );
+
+        // Logs.
+        $ajax_logs = new \TechrappySEO\Admin\Ajax\AjaxLogs();
+        $this->loader->add_action( 'wp_ajax_techrappy_get_job_logs', $ajax_logs, 'handle_get_job_logs' );
+        $this->loader->add_action( 'wp_ajax_techrappy_clear_logs',   $ajax_logs, 'handle_clear_logs' );
     }
 
     /**

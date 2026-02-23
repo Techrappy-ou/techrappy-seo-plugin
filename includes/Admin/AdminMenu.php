@@ -97,6 +97,16 @@ class AdminMenu {
             'techrappy-seo-settings',
             [ $this, 'render_settings_page' ]
         );
+
+        // ── Sous-page : Logs ──────────────────────────────────────────────
+        add_submenu_page(
+            self::PARENT_SLUG,
+            __( 'Logs', 'techrappy-seo' ),
+            __( 'Logs', 'techrappy-seo' ),
+            TECHRAPPY_SEO_CAPABILITY,
+            'techrappy-seo-logs',
+            [ $this, 'render_logs_page' ]
+        );
     }
 
     /**
@@ -161,6 +171,19 @@ class AdminMenu {
             wp_die( esc_html__( 'Accès non autorisé.', 'techrappy-seo' ) );
         }
         $page = new Pages\PageSettings();
+        $page->render();
+    }
+
+    /**
+     * Rendu de la page Logs.
+     *
+     * @return void
+     */
+    public function render_logs_page(): void {
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_die( esc_html__( 'Accès non autorisé.', 'techrappy-seo' ) );
+        }
+        $page = new Pages\PageLogs();
         $page->render();
     }
 }

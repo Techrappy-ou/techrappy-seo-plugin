@@ -147,10 +147,16 @@ class AjaxBulk {
             'publish_status'   => sanitize_key( $post_data['publish_status'] ?? 'draft' ),
             'slug_rule'        => sanitize_key( $post_data['slug_rule']      ?? 'from_keyword' ),
             'wp_params'        => [
-                'profession'  => $profession,
-                'parent_id'   => absint( $post_data['parent_id']   ?? 0 ),
-                'category_id' => absint( $post_data['category_id'] ?? 0 ),
-                'tags'        => array_map( 'absint', (array) ( $post_data['tags'] ?? [] ) ),
+                'profession'     => $profession,
+                'parent_id'      => absint(              $post_data['parent_id']      ?? 0 ),
+                'category_id'    => absint(              $post_data['category_id']    ?? 0 ),
+                'tags'           => array_map( 'absint', (array) ( $post_data['tags'] ?? [] ) ),
+                'menu_action'    => sanitize_key(        $post_data['menu_action']    ?? 'none' ),
+                'menu_id'        => absint(              $post_data['menu_id']        ?? 0 ),
+                'menu_name'      => sanitize_text_field( $post_data['menu_name']      ?? '' ),
+                'menu_location'  => sanitize_key(        $post_data['menu_location']  ?? '' ),
+                'label_format'   => sanitize_key(        $post_data['label_format']   ?? 'post_title' ),
+                'label_template' => sanitize_text_field( $post_data['label_template'] ?? '' ),
             ],
         ];
 

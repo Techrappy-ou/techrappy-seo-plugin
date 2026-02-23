@@ -7,6 +7,9 @@ wp-config-local.php
 # Logs
 *.log
 logs/
+# Exception : les vues PHP dans views/ ne sont pas des logs
+!views/**/logs/
+!views/**/logs/*.php
 
 # Composer
 vendor/

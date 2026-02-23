@@ -97,6 +97,12 @@ class PostWriter {
             'keyphrase'   => $job['keyword']          ?? '',
         ] );
 
+        // ── 5. Gestion automatique du menu ────────────────────────────────────
+        if ( ! empty( $wp_params['menu_action'] ) && 'none' !== $wp_params['menu_action'] ) {
+            $menu_manager = new \TechrappySEO\Menu\MenuManager();
+            $menu_manager->handle( $post_id, $wp_params, $job );
+        }
+
         return [
             'post_id'   => $post_id,
             'permalink' => (string) get_permalink( $post_id ),
