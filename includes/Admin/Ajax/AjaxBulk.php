@@ -34,33 +34,28 @@ class AjaxBulk {
             wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
         }
 
+        // Accepte "cp" (nouveau) ou "ville_principale" (rétrocompat).
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        $ville_principale = sanitize_text_field( $_POST['ville_principale'] ?? '' );
+        $cp        = sanitize_text_field( $_POST['cp'] ?? $_POST['ville_principale'] ?? '' );
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         $radius_km = absint( $_POST['radius_km'] ?? 30 );
 
-        if ( ! $ville_principale ) {
-            wp_send_json_error( [ 'message' => __( 'Ville principale requise.', 'techrappy-seo' ) ], 400 );
+        if ( ! $cp ) {
+            wp_send_json_error( [ 'message' => __( 'Code postal requis.', 'techrappy-seo' ) ], 400 );
         }
 
         $limit  = (int) \TechrappySEO\Settings\SettingsRepository::get( 'bulk_max_cities', 50 );
         $client = new VillesVoisinesClient();
-        $cities = $client->get_nearby_cities( $ville_principale, $radius_km, $limit );
-
-        // Fallback : toujours inclure la ville principale si l'API ne la retourne pas.
-        $found = array_column( $cities, 'city' );
-        if ( ! in_array( $ville_principale, $found, true ) ) {
-            array_unshift( $cities, [ 'city' => $ville_principale, 'cp' => '', 'distance' => 0.0 ] );
-        }
+        $cities = $client->get_nearby_cities( $cp, $radius_km, $limit );
 
         /**
          * Filtre pour personnaliser la liste de villes.
          *
          * @param array<int, array{city: string, cp: string}> $cities
-         * @param string $ville_principale
+         * @param string $cp
          * @param int    $radius_km
          */
-        $cities = apply_filters( 'techrappy_seo_bulk_cities', $cities, $ville_principale, $radius_km );
+        $cities = apply_filters( 'techrappy_seo_bulk_cities', $cities, $cp, $radius_km );
 
         wp_send_json_success( [
             'cities' => $cities,
@@ -125,10 +120,17 @@ class AjaxBulk {
             wp_send_json_error( [ 'message' => __( 'Liste de villes vide.', 'techrappy-seo' ) ], 400 );
         }
 
-        // Sanitizer les villes.
+        // Sanitizer les villes — accepte string "Toulouse" OU objet {city, cp}.
         $cities = [];
         foreach ( $cities_raw as $city_data ) {
-            if ( is_array( $city_data ) && ! empty( $city_data['city'] ) ) {
+            if ( is_string( $city_data ) && '' !== trim( $city_data ) ) {
+                // Format ancien : juste le nom de ville (string).
+                $cities[] = [
+                    'city' => sanitize_text_field( $city_data ),
+                    'cp'   => '',
+                ];
+            } elseif ( is_array( $city_data ) && ! empty( $city_data['city'] ) ) {
+                // Format nouveau : objet {city, cp}.
                 $cities[] = [
                     'city' => sanitize_text_field( $city_data['city'] ),
                     'cp'   => sanitize_text_field( $city_data['cp'] ?? '' ),

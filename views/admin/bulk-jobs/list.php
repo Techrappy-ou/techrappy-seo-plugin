@@ -7,7 +7,8 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-$jobs = \TechrappySEO\Jobs\JobRepository::list( [ 'limit' => 50 ] );
+// Afficher uniquement les jobs racines (pas les enfants bulk).
+$jobs = \TechrappySEO\Jobs\JobRepository::list( [ 'limit' => 50, 'top_level' => true ] );
 
 include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
 

@@ -153,13 +153,16 @@
             }
         });
 
-        // Auto-refresh si des jobs sont en cours
-        var hasRunning = false;
-        $('[data-status="running"], [data-status="pending"]').each(function () {
-            hasRunning = true;
-        });
+        // Auto-refresh si des jobs sont en cours (toutes les 8s).
+        var hasRunning = $('[data-status="running"], [data-status="pending"]').length > 0;
         if (hasRunning) {
-            setTimeout(refreshList, 15000);
+            setTimeout(refreshList, 8000);
+        } else {
+            // Rafraîchir une fois après 5s au cas où un job vient d'être créé.
+            setTimeout(function () {
+                var stillRunning = $('[data-status="running"], [data-status="pending"]').length > 0;
+                if (stillRunning) { refreshList(); }
+            }, 5000);
         }
     }
 

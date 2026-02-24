@@ -1,6 +1,6 @@
 <?php
 /**
- * Client pour la récupération des communes voisines (API Geo gouv.fr).
+ * Client pour la récupération des communes voisines via villes-voisines.fr.
  *
  * @package TechrappySEO\Geo
  */
@@ -16,19 +16,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Class VillesVoisinesClient
  *
- * Responsabilité : récupérer les communes voisines d'une ville donnée
- * via l'API officielle geo.api.gouv.fr (gratuite, sans clé).
+ * Responsabilité : récupérer les communes voisines d'un code postal donné
+ * via l'API villes-voisines.fr (gratuite, sans clé).
  *
- * Workflow :
- *   1. Trouver les coordonnées GPS de la ville de référence
- *   2. Lister les communes dans un rayon donné
+ * Endpoint : https://www.villes-voisines.fr/getcp.php?cp=CP&rayon=RAYON
+ * Réponse  : JSON array [ { code_postal, nom_commune, distance }, … ]
  */
 class VillesVoisinesClient {
 
     /**
-     * Endpoint de l'API Géo Gouv.
+     * Endpoint de l'API Villes Voisines.
      */
-    const GEO_API_BASE = 'https://geo.api.gouv.fr';
+    const API_BASE = 'https://www.villes-voisines.fr/getcp.php';
 
     /**
      * Timeout HTTP en secondes.
@@ -36,41 +35,33 @@ class VillesVoisinesClient {
     const HTTP_TIMEOUT = 10;
 
     /**
-     * Récupère les communes voisines d'une ville.
+     * Récupère les communes voisines d'un code postal.
      *
-     * @param string $city   Nom de la ville de référence.
-     * @param int    $radius Rayon en km (max 50 recommandé).
+     * @param string $cp     Code postal de référence (ex : "31000").
+     * @param int    $radius Rayon en km (max 50).
      * @param int    $limit  Nombre max de communes retournées.
      *
      * @return array<int, array{city: string, cp: string, distance: float}>
      */
-    public function get_nearby_cities( string $city, int $radius = 30, int $limit = 50 ): array {
-        $cache = new GeoCache();
-        $cache_key = "nearby_{$city}_{$radius}_{$limit}";
+    public function get_nearby_cities( string $cp, int $radius = 30, int $limit = 50 ): array {
+        $cache     = new GeoCache();
+        $cache_key = "vv_{$cp}_{$radius}_{$limit}";
 
         $cached = $cache->get( $cache_key );
         if ( false !== $cached && is_array( $cached ) ) {
             return $cached;
         }
 
-        // ── 1. Obtenir les coordonnées de la ville de référence ───────────────
-        $coordinates = $this->get_city_coordinates( $city );
-        if ( null === $coordinates ) {
-            return [];
-        }
+        // Rayon limité à 50 km (contrainte API).
+        $rayon = min( $radius, 50 );
 
-        [ $lat, $lon ] = $coordinates;
-
-        // ── 2. Lister les communes dans le rayon ──────────────────────────────
-        $radius_meters = $radius * 1000;
-        $url = add_query_arg( [
-            'lat'    => $lat,
-            'lon'    => $lon,
-            'distance' => $radius_meters,
-            'fields' => 'nom,codesPostaux',
-            'limit'  => $limit,
-            'boost'  => 'population',
-        ], self::GEO_API_BASE . '/communes' );
+        $url = add_query_arg(
+            [
+                'cp'    => rawurlencode( $cp ),
+                'rayon' => $rayon,
+            ],
+            self::API_BASE
+        );
 
         $response = wp_remote_get( $url, [
             'timeout' => self::HTTP_TIMEOUT,
@@ -93,72 +84,25 @@ class VillesVoisinesClient {
 
         $cities = [];
         foreach ( $body as $commune ) {
-            $nom = $commune['nom'] ?? '';
-            $cp  = $commune['codesPostaux'][0] ?? '';
-            if ( $nom ) {
+            $nom_commune = trim( $commune['nom_commune'] ?? '' );
+            $code_postal = trim( $commune['code_postal'] ?? '' );
+            $distance    = (float) ( $commune['distance'] ?? 0.0 );
+
+            if ( $nom_commune && $code_postal ) {
                 $cities[] = [
-                    'city'     => $nom,
-                    'cp'       => $cp,
-                    'distance' => 0.0,
+                    'city'     => $nom_commune,
+                    'cp'       => $code_postal,
+                    'distance' => $distance,
                 ];
+            }
+
+            if ( count( $cities ) >= $limit ) {
+                break;
             }
         }
 
         $cache->set( $cache_key, $cities );
 
         return $cities;
-    }
-
-    /**
-     * Récupère les coordonnées GPS d'une ville.
-     *
-     * @param string $city Nom de la ville.
-     *
-     * @return array{float, float}|null [lat, lon] ou null si non trouvée.
-     */
-    private function get_city_coordinates( string $city ): ?array {
-        $cache = new GeoCache();
-        $cache_key = "coords_{$city}";
-
-        $cached = $cache->get( $cache_key );
-        if ( false !== $cached && is_array( $cached ) ) {
-            return $cached;
-        }
-
-        $url = add_query_arg( [
-            'nom'    => rawurlencode( $city ),
-            'fields' => 'nom,centre',
-            'limit'  => 1,
-            'boost'  => 'population',
-        ], self::GEO_API_BASE . '/communes' );
-
-        $response = wp_remote_get( $url, [
-            'timeout' => self::HTTP_TIMEOUT,
-            'headers' => [ 'Accept' => 'application/json' ],
-        ] );
-
-        if ( is_wp_error( $response ) ) {
-            return null;
-        }
-
-        $code = wp_remote_retrieve_response_code( $response );
-        if ( 200 !== (int) $code ) {
-            return null;
-        }
-
-        $body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-        if ( empty( $body[0]['centre']['coordinates'] ) ) {
-            return null;
-        }
-
-        // GeoJSON : coordinates = [lon, lat]
-        $lon    = (float) $body[0]['centre']['coordinates'][0];
-        $lat    = (float) $body[0]['centre']['coordinates'][1];
-        $coords = [ $lat, $lon ];
-
-        $cache->set( $cache_key, $coords );
-
-        return $coords;
     }
 }

@@ -89,7 +89,7 @@
             return false;
         }
         if (getMode() === 'bulk' && !$('#wz_ville_principale').val().trim()) {
-            showNotice('La ville principale est requise pour la génération en masse.');
+            showNotice('Le code postal de référence est requis pour la génération en masse.');
             return false;
         }
         return true;
@@ -252,6 +252,9 @@
     }
 
     function launchSingle() {
+        // Arrêter tout polling précédent avant de démarrer un nouveau job.
+        stopPolling();
+
         var data = {
             nonce:            TechrappySEO.nonces.wizard,
             wizard_action:    'create_job',
@@ -275,6 +278,8 @@
         showStep(TOTAL_STEPS);
         $('#wz_progress').show();
         $('#wz_done, #wz_failed').hide();
+        $('#wz_log_output').empty();
+        renderPipelineSteps(null);
         appendLog('[INFO] Création du job…');
 
         TechrappySEOAjax(
@@ -294,9 +299,15 @@
     }
 
     function launchBulk() {
+        // Arrêter tout polling précédent avant de démarrer un nouveau job.
+        stopPolling();
+
         var selectedCities = [];
         $('#wz_cities_list input[type="checkbox"]:checked').each(function () {
-            selectedCities.push($(this).val());
+            selectedCities.push({
+                city: $(this).val(),
+                cp:   $(this).data('cp') || ''
+            });
         });
 
         if (!selectedCities.length) {
@@ -307,10 +318,9 @@
 
         var data = {
             nonce:            TechrappySEO.nonces.bulk,
-            keyword:          $('#wz_keyword').val().trim(),
+            keyword_base:     $('#wz_keyword').val().trim(),
             profession:       $('#wz_profession').val().trim(),
             type:             $('#wz_type').val(),
-            ville_principale: $('#wz_ville_principale').val().trim(),
             template_post_id: $('#wz_template_post_id').val(),
             publish_status:   $('#wz_publish_status').val(),
             slug_rule:        $('#wz_slug_rule').val(),
@@ -323,14 +333,16 @@
             label_format:     $('#bj-label-format').val()     || 'post_title',
             label_template:   $('#bj-label-template').val()   || '',
         };
-        // Envoyer les villes comme tableau
-        $.each(selectedCities, function (i, city) {
-            data['cities[' + i + ']'] = city;
+        // Envoyer les villes comme tableau d'objets {city, cp}.
+        $.each(selectedCities, function (i, c) {
+            data['cities[' + i + '][city]'] = c.city;
+            data['cities[' + i + '][cp]']   = c.cp;
         });
 
         showStep(TOTAL_STEPS);
         $('#wz_progress').show();
         $('#wz_done, #wz_failed').hide();
+        $('#wz_log_output').empty();
         appendLog('[INFO] Lancement bulk (' + selectedCities.length + ' villes)…');
 
         TechrappySEOAjax(
@@ -432,34 +444,42 @@
     // ──────────────────────────────────────────────────────────────────────────
 
     function loadCities() {
-        var ville    = $('#wz_ville_principale').val().trim();
+        var cp       = $('#wz_ville_principale').val().trim();
         var radius   = $('#wz_radius_km').val() || 30;
         var $container = $('#wz_cities_list');
 
-        if (!ville) { showNotice('Saisissez d\'abord la ville principale.'); return; }
+        if (!cp) { showNotice('Saisissez d\'abord le code postal.'); return; }
 
-        $container.html('<span class="spinner is-active" style="float:none;vertical-align:middle;"></span> Chargement…');
+        $container.html('<span class="spinner is-active" style="float:none;vertical-align:middle;"></span> Chargement des communes…');
 
         TechrappySEOAjax(
             'techrappy_get_cities',
-            { nonce: TechrappySEO.nonces.bulk, ville_principale: ville, radius_km: radius },
+            { nonce: TechrappySEO.nonces.bulk, cp: cp, radius_km: radius },
             function (data) {
                 var cities = data.cities || [];
-                if (!cities.length) { $container.html('<p>Aucune ville trouvée.</p>'); return; }
+                if (!cities.length) {
+                    $container.html('<p style="color:#b91c1c;">Aucune commune trouvée pour ce code postal.</p>');
+                    return;
+                }
 
-                var html = '<div id="bj-cities-checkboxes" style="max-height:200px;overflow-y:auto;border:1px solid #ddd;padding:10px;">';
+                var html = '<div id="bj-cities-checkboxes" style="max-height:240px;overflow-y:auto;border:1px solid #ddd;padding:10px;">';
                 $.each(cities, function (i, c) {
-                    var label = c.city + (c.cp ? ' (' + c.cp + ')' : '') + (c.distance ? ' — ' + parseFloat(c.distance).toFixed(1) + ' km' : '');
-                    html += '<label style="display:block;margin-bottom:4px;"><input type="checkbox" name="wz_cities[]" value="' + c.city + '" checked> ' + label + '</label>';
+                    var safeName = $('<span>').text(c.city).html();
+                    var safeCp   = $('<span>').text(c.cp).html();
+                    var dist     = c.distance ? ' — ' + parseFloat(c.distance).toFixed(1) + ' km' : '';
+                    var label    = safeName + ' (' + safeCp + ')' + dist;
+                    html += '<label style="display:block;margin-bottom:4px;">'
+                          + '<input type="checkbox" name="wz_cities[]" value="' + safeName + '" data-cp="' + safeCp + '" checked> '
+                          + label + '</label>';
                 });
                 html += '</div><p>';
                 html += '<a href="#" id="wz_select_all_cities">Tout sélectionner</a> &nbsp;|&nbsp; ';
                 html += '<a href="#" id="wz_deselect_all_cities">Tout désélectionner</a>';
-                html += '<span style="float:right;color:#777;font-size:12px;">' + cities.length + ' ville(s)</span></p>';
+                html += '<span style="float:right;color:#777;font-size:12px;">' + cities.length + ' commune(s)</span></p>';
                 $container.html(html);
             },
             function (err) {
-                $container.html('<p style="color:red;">' + (err.message || 'Erreur chargement villes.') + '</p>');
+                $container.html('<p style="color:red;">' + (err.message || 'Erreur chargement communes.') + '</p>');
             }
         );
     }

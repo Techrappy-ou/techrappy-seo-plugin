@@ -188,6 +188,11 @@ class JobRepository {
             $params[] = $filters['parent_job_id'];
         }
 
+        // Filtre "top_level" : exclut les enfants bulk (ceux qui ont un parent).
+        if ( ! empty( $filters['top_level'] ) ) {
+            $where .= " AND (parent_job_id IS NULL OR parent_job_id = '')";
+        }
+
         $limit  = absint( $filters['limit']  ?? 20 );
         $offset = absint( $filters['offset'] ?? 0 );
 

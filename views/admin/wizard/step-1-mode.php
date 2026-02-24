@@ -84,11 +84,13 @@ $steps_labels = [
                 </td>
             </tr>
             <tr id="wz_bulk_city_row" style="display:none;">
-                <th scope="row"><label for="wz_ville_principale"><?php esc_html_e( 'Ville principale (bulk)', 'techrappy-seo' ); ?></label></th>
+                <th scope="row"><label for="wz_ville_principale"><?php esc_html_e( 'Code postal de référence', 'techrappy-seo' ); ?></label></th>
                 <td>
-                    <input type="text" id="wz_ville_principale" name="wz_ville_principale" class="regular-text"
-                           placeholder="<?php esc_attr_e( 'ex : Toulouse', 'techrappy-seo' ); ?>">
-                    <br><br>
+                    <input type="text" id="wz_ville_principale" name="wz_ville_principale" class="small-text"
+                           placeholder="<?php esc_attr_e( 'ex : 31000', 'techrappy-seo' ); ?>"
+                           maxlength="5" pattern="\d{5}" inputmode="numeric">
+                    <p class="description"><?php esc_html_e( 'Entrez un code postal français à 5 chiffres (ex : 31000 pour Toulouse).', 'techrappy-seo' ); ?></p>
+                    <br>
                     <label><?php esc_html_e( 'Rayon (km) :', 'techrappy-seo' ); ?>
                         <input type="number" id="wz_radius_km" name="wz_radius_km" value="30"
                                min="5" max="100" class="small-text">
@@ -200,7 +202,7 @@ $steps_labels = [
     <?php /* ── Étape 6 : Génération en cours ────────────────────────────────── */ ?>
     <div class="techrappy-wizard-content" id="wz-step-6" style="display:none;">
         <h2 id="wz_step6_title"><?php esc_html_e( 'Génération en cours…', 'techrappy-seo' ); ?></h2>
-        <div id="wz_progress">
+        <div id="wz_progress" style="display:none;">
 
             <?php /* Barre de progression globale */ ?>
             <div style="margin-bottom:16px;">
