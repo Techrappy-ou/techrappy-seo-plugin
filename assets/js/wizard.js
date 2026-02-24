@@ -208,6 +208,12 @@
             slug_rule:        $('#wz_slug_rule').val(),
             parent_id:        $('#wz_parent_id').val() || 0,
             category_id:      $('#wz_category_id').val() || 0,
+            menu_action:      $('#bj-menu-action').val()      || 'none',
+            menu_id:          $('#bj-menu-id').val()          || 0,
+            menu_name:        $('#bj-menu-name').val()        || '',
+            menu_location:    $('#bj-menu-location').val()    || '',
+            label_format:     $('#bj-label-format').val()     || 'post_title',
+            label_template:   $('#bj-label-template').val()   || '',
         };
 
         showStep(TOTAL_STEPS);
@@ -254,6 +260,12 @@
             slug_rule:        $('#wz_slug_rule').val(),
             parent_id:        $('#wz_parent_id').val() || 0,
             category_id:      $('#wz_category_id').val() || 0,
+            menu_action:      $('#bj-menu-action').val()      || 'none',
+            menu_id:          $('#bj-menu-id').val()          || 0,
+            menu_name:        $('#bj-menu-name').val()        || '',
+            menu_location:    $('#bj-menu-location').val()    || '',
+            label_format:     $('#bj-label-format').val()     || 'post_title',
+            label_template:   $('#bj-label-template').val()   || '',
         };
         // Envoyer les villes comme tableau
         $.each(selectedCities, function (i, city) {

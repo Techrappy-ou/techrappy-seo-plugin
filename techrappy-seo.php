@@ -47,6 +47,9 @@ define( 'TECHRAPPY_SEO_DB_PREFIX', 'techrappy_seo_' );
 /** Capacité WordPress requise pour accéder au plugin */
 define( 'TECHRAPPY_SEO_CAPABILITY', 'manage_options' );
 
+/** Chemin absolu vers le répertoire des vues (avec slash final) */
+define( 'TECHRAPPY_SEO_VIEWS', TECHRAPPY_SEO_PATH . 'views/' );
+
 // ─────────────────────────────────────────────
 // Autoloader PSR-4 minimal (sans Composer)
 // ─────────────────────────────────────────────
