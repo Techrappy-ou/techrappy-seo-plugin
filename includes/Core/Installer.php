@@ -27,7 +27,7 @@ class Installer {
      * Version du schéma de base de données.
      * Incrémenter à chaque modification de schéma pour déclencher une migration.
      */
-    const DB_VERSION = '1.0.0';
+    const DB_VERSION = '1.1.0';
 
     /**
      * Crée ou met à jour les tables custom du plugin via dbDelta().
@@ -85,7 +85,7 @@ class Installer {
   steps_data LONGTEXT NOT NULL DEFAULT '{}',
   result_data TEXT NOT NULL DEFAULT '{}',
   logs LONGTEXT NOT NULL DEFAULT '[]',
-  status ENUM('pending','running','done','error') NOT NULL DEFAULT 'pending',
+  status ENUM('pending','running','done','done_with_errors','failed','error') NOT NULL DEFAULT 'pending',
   parent_job_id VARCHAR(36) NOT NULL DEFAULT '',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
