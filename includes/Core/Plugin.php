@@ -131,6 +131,7 @@ final class Plugin {
         $this->loader->add_action( 'wp_ajax_techrappy_preview_city', $ajax_bulk, 'handle_preview_city' );
         $this->loader->add_action( 'wp_ajax_techrappy_launch_bulk', $ajax_bulk, 'handle_launch_bulk' );
         $this->loader->add_action( 'wp_ajax_techrappy_get_job_status', $ajax_bulk, 'handle_get_job_status' );
+        $this->loader->add_action( 'wp_ajax_techrappy_retry_job',      $ajax_bulk, 'handle_retry_job' );
 
         // Audit de templates.
         $ajax_audit = new \TechrappySEO\Admin\Ajax\AjaxTemplateAudit();

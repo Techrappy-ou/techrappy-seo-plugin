@@ -411,9 +411,17 @@
     // Init
     // ──────────────────────────────────────────────────────────────────────────
 
+    function resetStep6() {
+        $('#wz_done, #wz_failed').hide();
+        $('#wz_progress').show();
+        $('#wz_log_output').empty();
+        $('#wz_progress_msg').text('Initialisation…');
+    }
+
     function init() {
         if (!$('#techrappy-wizard').length) { return; }
 
+        resetStep6();
         showStep(1);
 
         $('input[name="wz_mode"]').on('change', function () {
@@ -468,7 +476,8 @@
             stopPolling();
             currentJobId = null;
             $('#wz_keyword, #wz_profession, #wz_city, #wz_ville_principale').val('');
-            $('#wz_cities_list, #wz_log_output').empty();
+            $('#wz_cities_list').empty();
+            resetStep6();
             showStep(1);
         });
 

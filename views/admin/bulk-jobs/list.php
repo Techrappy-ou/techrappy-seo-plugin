@@ -57,6 +57,18 @@ $status_labels = [
                     $total      = $steps['_bulk_total']    ?? 0;
                     $done       = $steps['_bulk_done']     ?? 0;
                     $percent    = $steps['_bulk_progress'] ?? 0;
+                    $is_failed  = in_array( $status, [ 'failed', 'done_with_errors' ], true );
+
+                    // Dernier message d'erreur dans les logs.
+                    $last_error = '';
+                    if ( $is_failed && is_array( $job['logs'] ) ) {
+                        foreach ( array_reverse( $job['logs'] ) as $log_entry ) {
+                            if ( ( $log_entry['level'] ?? '' ) === 'error' ) {
+                                $last_error = $log_entry['msg'] ?? '';
+                                break;
+                            }
+                        }
+                    }
                 ?>
                 <tr data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>"
                     data-mode="<?php echo esc_attr( $job['mode'] ); ?>"
@@ -81,8 +93,12 @@ $status_labels = [
                             <a href="<?php echo esc_url( $result['permalink'] ); ?>" target="_blank">
                                 <?php esc_html_e( 'Voir le post', 'techrappy-seo' ); ?>
                             </a>
-                        <?php elseif ( 'done' === $status || 'done_with_errors' === $status ) : ?>
+                        <?php elseif ( 'done' === $status ) : ?>
                             <em><?php esc_html_e( 'Job parent (voir enfants)', 'techrappy-seo' ); ?></em>
+                        <?php elseif ( $is_failed && $last_error ) : ?>
+                            <span style="color:#721c24;font-size:12px;" title="<?php echo esc_attr( $last_error ); ?>">
+                                ✗ <?php echo esc_html( mb_strimwidth( $last_error, 0, 80, '…' ) ); ?>
+                            </span>
                         <?php else : ?>
                             —
                         <?php endif; ?>
@@ -93,6 +109,14 @@ $status_labels = [
                             <button type="button" class="button bj-btn-status"
                                     data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>">
                                 <?php esc_html_e( 'Statut', 'techrappy-seo' ); ?>
+                            </button>
+                        <?php endif; ?>
+                        <?php if ( $is_failed ) : ?>
+                            <button type="button" class="button bj-btn-retry"
+                                    data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>"
+                                    data-is-bulk="<?php echo esc_attr( $is_bulk ? '1' : '0' ); ?>"
+                                    style="color:#b91c1c;border-color:#b91c1c;margin-top:2px;">
+                                ↺ <?php esc_html_e( 'Relancer', 'techrappy-seo' ); ?>
                             </button>
                         <?php endif; ?>
                     </td>

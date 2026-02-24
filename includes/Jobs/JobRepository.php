@@ -206,6 +206,33 @@ class JobRepository {
     }
 
     /**
+     * Remet un job en état 'pending' pour relance (retry).
+     * Efface le résultat, les logs et les données d'étapes.
+     *
+     * @param string $job_id UUID du job.
+     *
+     * @return bool
+     */
+    public static function reset_for_retry( string $job_id ): bool {
+        global $wpdb;
+
+        $result = $wpdb->update(
+            self::table(),
+            [
+                'status'      => 'pending',
+                'result_data' => '[]',
+                'logs'        => '[]',
+                'steps_data'  => '[]',
+            ],
+            [ 'job_id' => $job_id ],
+            [ '%s', '%s', '%s', '%s' ],
+            [ '%s' ]
+        );
+
+        return false !== $result;
+    }
+
+    /**
      * Décode les champs JSON d'une ligne de la table.
      *
      * @param array<string, mixed> $row Ligne brute depuis wpdb.

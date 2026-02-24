@@ -115,6 +115,33 @@
             openModal(jobId);
         });
 
+        // Bouton relancer (retry)
+        $(document).on('click', '.bj-btn-retry', function () {
+            var jobId  = $(this).data('job-id');
+            var isBulk = $(this).data('is-bulk') === '1';
+            var msg    = isBulk
+                ? 'Relancer tous les jobs enfants en échec ?'
+                : 'Relancer ce job ?';
+
+            if (!window.confirm(msg)) { return; }
+
+            var $btn = $(this).prop('disabled', true).text('…');
+
+            TechrappySEOAjax(
+                'techrappy_retry_job',
+                { nonce: TechrappySEO.nonces.bulk, job_id: jobId },
+                function (data) {
+                    $btn.prop('disabled', false).text('↺ Relancer');
+                    alert(data.message || 'Job relancé.');
+                    refreshList();
+                },
+                function (err) {
+                    $btn.prop('disabled', false).text('↺ Relancer');
+                    alert('Erreur : ' + (err.message || 'Impossible de relancer le job.'));
+                }
+            );
+        });
+
         // Fermer le modal
         $('#bj-modal-close').on('click', closeModal);
 

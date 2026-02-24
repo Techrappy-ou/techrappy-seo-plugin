@@ -182,6 +182,85 @@ class AjaxBulk {
     }
 
     /**
+     * Relance un job échoué (single ou bulk).
+     *
+     * @return void
+     */
+    public function handle_retry_job(): void {
+        check_ajax_referer( 'techrappy_seo_bulk', 'nonce' );
+
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $job_id = sanitize_text_field( $_POST['job_id'] ?? '' );
+
+        if ( ! $job_id ) {
+            wp_send_json_error( [ 'message' => __( 'job_id manquant.', 'techrappy-seo' ) ], 400 );
+        }
+
+        $job = JobRepository::find( $job_id );
+
+        if ( ! $job ) {
+            wp_send_json_error( [ 'message' => __( 'Job introuvable.', 'techrappy-seo' ) ], 404 );
+        }
+
+        // ── Cas bulk parent : relancer uniquement les jobs enfants en échec ──
+        if ( 'bulk' === $job['mode'] && empty( $job['parent_job_id'] ) ) {
+            $children = JobRepository::list( [
+                'parent_job_id' => $job_id,
+                'status'        => 'failed',
+                'limit'         => 200,
+            ] );
+
+            $retried = 0;
+            foreach ( $children as $child ) {
+                if ( JobRepository::reset_for_retry( $child['job_id'] ) ) {
+                    \TechrappySEO\Jobs\QueueScheduler::schedule_single( $child['job_id'] );
+                    $retried++;
+                }
+            }
+
+            // Remettre le job parent en running pour reprendre le suivi.
+            if ( $retried > 0 ) {
+                $steps                 = is_array( $job['steps_data'] ) ? $job['steps_data'] : [];
+                $steps['_bulk_failed'] = 0;
+                global $wpdb;
+                $wpdb->update(
+                    $wpdb->prefix . 'techrappy_seo_jobs',
+                    [
+                        'status'     => 'running',
+                        'steps_data' => wp_json_encode( $steps ),
+                    ],
+                    [ 'job_id' => $job_id ],
+                    [ '%s', '%s' ],
+                    [ '%s' ]
+                );
+                \TechrappySEO\Jobs\QueueScheduler::schedule_progress_check( $job_id );
+            }
+
+            wp_send_json_success( [
+                'retried' => $retried,
+                'message' => sprintf(
+                    /* translators: %d = nombre de jobs relancés */
+                    _n( '%d job relancé.', '%d jobs relancés.', $retried, 'techrappy-seo' ),
+                    $retried
+                ),
+            ] );
+        }
+
+        // ── Cas single (ou enfant bulk) ──────────────────────────────────────
+        if ( ! JobRepository::reset_for_retry( $job_id ) ) {
+            wp_send_json_error( [ 'message' => __( 'Échec de la remise en file.', 'techrappy-seo' ) ], 500 );
+        }
+
+        \TechrappySEO\Jobs\QueueScheduler::schedule_single( $job_id );
+
+        wp_send_json_success( [ 'message' => __( 'Job remis en file d\'attente.', 'techrappy-seo' ) ] );
+    }
+
+    /**
      * Retourne le statut et la progression d'un job (single ou bulk).
      *
      * @return void
