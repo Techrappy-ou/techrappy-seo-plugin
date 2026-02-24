@@ -167,10 +167,8 @@ class ContentAssembler {
             $parts[] = $tokens['faq_visible_html'];
         }
 
-        // JSON-LD FAQ schema
-        if ( ! empty( $tokens['faq_jsonld'] ) ) {
-            $parts[] = $tokens['faq_jsonld'];
-        }
+        // Nota : faq_jsonld est stocké en post meta (_techrappy_faq_schema)
+        // et injecté via wp_head — il ne doit pas apparaître dans post_content.
 
         return implode( "\n\n", array_filter( $parts ) );
     }

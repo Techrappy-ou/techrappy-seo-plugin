@@ -97,6 +97,14 @@ class PostWriter {
             'keyphrase'   => $job['keyword']          ?? '',
         ] );
 
+        // ── 4b. Stocker le schéma JSON-LD FAQ en post meta ───────────────────
+        // Il sera injecté dans <head> via wp_head, jamais dans post_content.
+        if ( ! empty( $assembled['tokens']['faq_jsonld'] ) ) {
+            update_post_meta( $post_id, '_techrappy_faq_schema', $assembled['tokens']['faq_jsonld'] );
+        } else {
+            delete_post_meta( $post_id, '_techrappy_faq_schema' );
+        }
+
         // ── 5. Gestion automatique du menu ────────────────────────────────────
         if ( ! empty( $wp_params['menu_action'] ) && 'none' !== $wp_params['menu_action'] ) {
             $menu_manager = new \TechrappySEO\Menu\MenuManager();

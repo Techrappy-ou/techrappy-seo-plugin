@@ -199,13 +199,26 @@ $steps_labels = [
 
     <?php /* ── Étape 6 : Génération en cours ────────────────────────────────── */ ?>
     <div class="techrappy-wizard-content" id="wz-step-6" style="display:none;">
-        <h2><?php esc_html_e( 'Génération en cours…', 'techrappy-seo' ); ?></h2>
+        <h2 id="wz_step6_title"><?php esc_html_e( 'Génération en cours…', 'techrappy-seo' ); ?></h2>
         <div id="wz_progress">
-            <p>
-                <span class="spinner is-active" style="float:none;vertical-align:middle;margin-right:8px;"></span>
-                <span id="wz_progress_msg"><?php esc_html_e( 'Initialisation…', 'techrappy-seo' ); ?></span>
-            </p>
-            <div id="wz_log_output" style="max-height:200px;overflow-y:auto;background:#f6f7f7;padding:10px;font-family:monospace;font-size:12px;border:1px solid #ddd;"></div>
+
+            <?php /* Barre de progression globale */ ?>
+            <div style="margin-bottom:16px;">
+                <div style="background:#e2e3e5;border-radius:6px;height:12px;overflow:hidden;">
+                    <div id="wz_progress_bar" style="background:#0073aa;height:12px;width:0%;border-radius:6px;transition:width .4s ease;"></div>
+                </div>
+                <p style="margin:8px 0 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span class="spinner is-active" id="wz_spinner" style="float:none;margin:0;"></span>
+                    <span id="wz_progress_msg"><?php esc_html_e( 'Initialisation…', 'techrappy-seo' ); ?></span>
+                    <span id="wz_progress_pct" style="margin-left:auto;font-weight:600;color:#0073aa;font-size:13px;"></span>
+                </p>
+            </div>
+
+            <?php /* Étapes nommées */ ?>
+            <div id="wz_steps_list" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+
+            <?php /* Logs */ ?>
+            <div id="wz_log_output" style="max-height:160px;overflow-y:auto;background:#f6f7f7;padding:8px;font-family:monospace;font-size:11px;border:1px solid #ddd;border-radius:4px;"></div>
         </div>
         <div id="wz_done" style="display:none;">
             <div class="notice notice-success" style="padding:10px;">

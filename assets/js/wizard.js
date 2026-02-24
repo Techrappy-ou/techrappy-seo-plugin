@@ -8,6 +8,21 @@
     var currentJobId = null;
     var pollTimer = null;
 
+    // Étapes du pipeline IA (dans l'ordre d'exécution).
+    var PIPELINE_STEPS = [
+        { key: 'intent',         label: 'Analyse intention' },
+        { key: 'plan',           label: 'Plan' },
+        { key: 'blocks_list',    label: 'Structure' },
+        { key: 'intro',          label: 'Introduction' },
+        { key: 'blocks',         label: 'Rédaction' },
+        { key: 'anti_duplicate', label: 'Anti-dup.' },
+        { key: 'conclusion_cta', label: 'Conclusion' },
+        { key: 'meta',           label: 'Méta SEO' },
+        { key: 'faq',            label: 'FAQ' },
+        { key: 'internal_links', label: 'Liens' },
+        { key: 'qa',             label: 'Qualité' },
+    ];
+
     // ──────────────────────────────────────────────────────────────────────────
     // Helpers
     // ──────────────────────────────────────────────────────────────────────────
@@ -180,6 +195,47 @@
     // Étape 6 : lancement & polling
     // ──────────────────────────────────────────────────────────────────────────
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Barre de progression par étape
+    // ──────────────────────────────────────────────────────────────────────────
+
+    function renderPipelineSteps(steps) {
+        var doneCount = 0;
+        var currentLabel = '';
+        var html = '';
+
+        PIPELINE_STEPS.forEach(function (step) {
+            var s = steps ? steps[step.key] : null;
+            var status = s ? (s.status || 'pending') : 'pending';
+
+            var icon, bg, color;
+            if (status === 'ok') {
+                icon = '✓'; bg = '#d4edda'; color = '#155724'; doneCount++;
+            } else if (status === 'error') {
+                icon = '✗'; bg = '#f8d7da'; color = '#721c24'; doneCount++;
+            } else if (status === 'running') {
+                icon = '⏳'; bg = '#fff3cd'; color = '#856404';
+                currentLabel = step.label;
+            } else {
+                icon = '·'; bg = '#e2e3e5'; color = '#6c757d';
+            }
+
+            html += '<span style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;'
+                  + 'background:' + bg + ';color:' + color + ';white-space:nowrap;">'
+                  + icon + ' ' + step.label + '</span>';
+        });
+
+        $('#wz_steps_list').html(html);
+
+        var pct = Math.round((doneCount / PIPELINE_STEPS.length) * 100);
+        $('#wz_progress_bar').css('width', pct + '%');
+        $('#wz_progress_pct').text(pct ? pct + '%' : '');
+
+        if (currentLabel) {
+            $('#wz_progress_msg').text('En cours : ' + currentLabel + '…');
+        }
+    }
+
     function appendLog(msg, level) {
         var $log = $('#wz_log_output');
         $log.append('<div class="log-' + (level || 'info') + '">' + msg + '</div>');
@@ -308,6 +364,21 @@
                 function (data) {
                     var status = data.status;
 
+                    // Mettre à jour les étapes du pipeline (mode single).
+                    if (!isBulk && data.steps) {
+                        renderPipelineSteps(data.steps);
+                    }
+
+                    // Progression bulk.
+                    if (isBulk && data.progress) {
+                        var p = data.progress;
+                        var bPct = p.percent || 0;
+                        $('#wz_progress_bar').css('width', bPct + '%');
+                        $('#wz_progress_pct').text(bPct ? bPct + '%' : '');
+                        $('#wz_progress_msg').text('Villes : ' + (p.done || 0) + '/' + (p.total || 0));
+                    }
+
+                    // Logs.
                     var logs = data.logs || [];
                     if (logs.length) {
                         $('#wz_log_output').empty();
@@ -317,22 +388,24 @@
                         });
                     }
 
-                    if (isBulk && data.progress) {
-                        var p = data.progress;
-                        $('#wz_progress_msg').text('Progression : ' + (p.done || 0) + '/' + (p.total || 0) + ' (' + (p.percent || 0) + '%)');
-                    } else {
-                        $('#wz_progress_msg').text('Statut : ' + status);
-                    }
-
                     if (status === 'done' || status === 'done_with_errors') {
                         stopPolling();
-                        $('#wz_progress').hide();
-                        $('#wz_done').show();
-                        var result = data.result || {};
-                        if (result.permalink) { $('#wz_post_link').attr('href', result.permalink); }
-                        if (result.post_id) {
-                            $('#wz_edit_link').attr('href', TechrappySEO.admin_url + 'post.php?post=' + result.post_id + '&action=edit');
-                        }
+                        // 100% sur la barre.
+                        $('#wz_progress_bar').css('width', '100%');
+                        $('#wz_progress_pct').text('100%');
+                        $('#wz_spinner').removeClass('is-active');
+                        $('#wz_progress_msg').text('Terminé !');
+
+                        setTimeout(function () {
+                            $('#wz_progress').hide();
+                            var result = data.result || {};
+                            if (result.permalink) { $('#wz_post_link').attr('href', result.permalink); }
+                            if (result.post_id) {
+                                $('#wz_edit_link').attr('href', TechrappySEO.admin_url + 'post.php?post=' + result.post_id + '&action=edit');
+                            }
+                            $('#wz_step6_title').text('Génération terminée !');
+                            $('#wz_done').show();
+                        }, 600);
                     } else if (status === 'failed') {
                         stopPolling();
                         $('#wz_progress').hide();

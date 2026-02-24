@@ -170,6 +170,9 @@ class AjaxBulk {
         // Planifier la première vérification de progression.
         \TechrappySEO\Jobs\QueueScheduler::schedule_progress_check( $parent_id );
 
+        // Forcer l'exécution immédiate du cron en arrière-plan.
+        spawn_cron();
+
         wp_send_json_success( [
             'job_id'  => $parent_id,
             'total'   => count( $cities ),

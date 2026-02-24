@@ -55,6 +55,7 @@ final class Plugin {
         $this->define_admin_hooks();
         $this->define_ajax_hooks();
         $this->define_scheduler_hooks();
+        $this->define_frontend_hooks();
         $this->loader->run();
     }
 
@@ -154,6 +155,40 @@ final class Plugin {
         $ajax_logs = new \TechrappySEO\Admin\Ajax\AjaxLogs();
         $this->loader->add_action( 'wp_ajax_techrappy_get_job_logs', $ajax_logs, 'handle_get_job_logs' );
         $this->loader->add_action( 'wp_ajax_techrappy_clear_logs',   $ajax_logs, 'handle_clear_logs' );
+    }
+
+    /**
+     * Déclare les hooks frontend (côté visiteur).
+     *
+     * @return void
+     */
+    private function define_frontend_hooks(): void {
+        $this->loader->add_action( 'wp_head', $this, 'output_faq_schema' );
+    }
+
+    /**
+     * Injecte le schéma JSON-LD FAQ dans <head> pour les posts/pages concernés.
+     *
+     * @return void
+     */
+    public function output_faq_schema(): void {
+        if ( ! is_singular() ) {
+            return;
+        }
+
+        $raw = get_post_meta( get_the_ID(), '_techrappy_faq_schema', true );
+
+        if ( empty( $raw ) ) {
+            return;
+        }
+
+        $data = json_decode( $raw );
+
+        if ( ! $data || JSON_ERROR_NONE !== json_last_error() ) {
+            return;
+        }
+
+        echo '<script type="application/ld+json">' . wp_json_encode( $data ) . "</script>\n";
     }
 
     /**

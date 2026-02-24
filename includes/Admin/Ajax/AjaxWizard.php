@@ -124,6 +124,9 @@ class AjaxWizard {
 
         QueueScheduler::schedule_single( $job_id );
 
+        // Déclencher immédiatement le cron WordPress en arrière-plan.
+        spawn_cron();
+
         wp_send_json_success( [
             'job_id'  => $job_id,
             'message' => __( 'Job créé et planifié.', 'techrappy-seo' ),
