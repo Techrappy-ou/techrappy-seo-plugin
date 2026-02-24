@@ -1,0 +1,273 @@
+# Traduction française — Techrappy SEO
+# Copyright (C) 2024 Techrappy
+# This file is distributed under the Proprietary license.
+msgid ""
+msgstr ""
+"Project-Id-Version: Techrappy SEO 1.0.0\n"
+"Report-Msgid-Bugs-To: https://techrappy.fr\n"
+"POT-Creation-Date: 2024-01-01 00:00+0000\n"
+"PO-Revision-Date: 2026-02-24 00:00+0000\n"
+"Last-Translator: Techrappy <contact@techrappy.fr>\n"
+"Language-Team: French <contact@techrappy.fr>\n"
+"Language: fr_FR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"X-Domain: techrappy-seo\n"
+
+#. Plugin Name
+msgid "Techrappy SEO"
+msgstr "Techrappy SEO"
+
+#. Description
+msgid "Génération automatique de pages et articles SEO-ready avec Divi Builder et OpenAI."
+msgstr "Génération automatique de pages et articles SEO-ready avec Divi Builder et OpenAI."
+
+#. Author
+msgid "Techrappy"
+msgstr "Techrappy"
+
+#: includes/Admin/AdminMenu.php
+msgid "Nouvelle génération"
+msgstr "Nouvelle génération"
+
+#: includes/Admin/AdminMenu.php
+msgid "Audit de templates"
+msgstr "Audit de templates"
+
+#: includes/Admin/AdminMenu.php
+msgid "Jobs en masse"
+msgstr "Jobs en masse"
+
+#: includes/Admin/AdminMenu.php
+msgid "Prompt Studio"
+msgstr "Prompt Studio"
+
+#: includes/Admin/AdminMenu.php
+msgid "Réglages"
+msgstr "Réglages"
+
+#: includes/Admin/AdminMenu.php
+msgid "Logs"
+msgstr "Logs"
+
+#: includes/Admin/AdminMenu.php
+#: includes/Admin/Ajax/AjaxWizard.php
+#: includes/Admin/Ajax/AjaxGeneration.php
+#: includes/Admin/Ajax/AjaxBulk.php
+#: includes/Admin/Ajax/AjaxTemplateAudit.php
+#: includes/Admin/Ajax/AjaxPromptStudio.php
+#: includes/Admin/Ajax/AjaxSettings.php
+#: includes/Admin/Ajax/AjaxLogs.php
+msgid "Accès non autorisé."
+msgstr "Accès non autorisé."
+
+#: includes/Admin/Ajax/AjaxBulk.php
+msgid "Ville principale requise."
+msgstr "Ville principale requise."
+
+#: includes/Admin/Ajax/AjaxBulk.php
+msgid "Mot-clé de base requis."
+msgstr "Mot-clé de base requis."
+
+#: includes/Admin/Ajax/AjaxBulk.php
+msgid "Mot-clé de base et profession requis."
+msgstr "Mot-clé de base et profession requis."
+
+#: includes/Admin/Ajax/AjaxBulk.php
+msgid "Liste de villes vide."
+msgstr "Liste de villes vide."
+
+#: includes/Admin/Ajax/AjaxBulk.php
+msgid "Aucune ville valide."
+msgstr "Aucune ville valide."
+
+#: includes/Admin/Ajax/AjaxBulk.php
+msgid "Échec de la création du job bulk."
+msgstr "Échec de la création du job bulk."
+
+#. translators: %d = nombre de villes
+#: includes/Admin/Ajax/AjaxBulk.php
+msgid "Génération bulk lancée pour %d villes."
+msgstr "Génération bulk lancée pour %d villes."
+
+#: includes/Admin/Ajax/AjaxBulk.php
+msgid "job_id manquant."
+msgstr "job_id manquant."
+
+#: includes/Admin/Ajax/AjaxBulk.php
+msgid "Job introuvable."
+msgstr "Job introuvable."
+
+#: includes/Admin/Ajax/AjaxTemplateAudit.php
+msgid "post_id manquant."
+msgstr "post_id manquant."
+
+#: includes/Admin/Ajax/AjaxTemplateAudit.php
+msgid "Post introuvable."
+msgstr "Post introuvable."
+
+#: includes/Admin/Ajax/AjaxTemplateAudit.php
+msgid "Mapping invalide."
+msgstr "Mapping invalide."
+
+#: includes/Admin/Ajax/AjaxTemplateAudit.php
+msgid "Erreur lors de la sauvegarde."
+msgstr "Erreur lors de la sauvegarde."
+
+#: includes/Admin/Ajax/AjaxTemplateAudit.php
+msgid "Données JSON manquantes."
+msgstr "Données JSON manquantes."
+
+#: includes/Admin/Ajax/AjaxTemplateAudit.php
+msgid "JSON invalide."
+msgstr "JSON invalide."
+
+#: includes/Admin/Ajax/AjaxTemplateAudit.php
+msgid "Contenu Divi absent dans le JSON."
+msgstr "Contenu Divi absent dans le JSON."
+
+#: includes/Admin/Ajax/AjaxTemplateAudit.php
+msgid "Template importé et créé en brouillon."
+msgstr "Template importé et créé en brouillon."
+
+#: includes/Admin/Ajax/AjaxLogs.php
+msgid "%d job(s) supprimé(s)."
+msgstr "%d job(s) supprimé(s)."
+
+#: includes/Admin/Ajax/AjaxSettings.php
+msgid "Données invalides."
+msgstr "Données invalides."
+
+#: includes/Admin/Ajax/AjaxSettings.php
+msgid "Erreurs de validation."
+msgstr "Erreurs de validation."
+
+#: includes/Admin/Ajax/AjaxSettings.php
+msgid "Réglages sauvegardés."
+msgstr "Réglages sauvegardés."
+
+#: includes/Settings/SettingsValidator.php
+msgid "La clé API OpenAI semble invalide (doit commencer par \"sk-\")."
+msgstr "La clé API OpenAI semble invalide (doit commencer par « sk- »)."
+
+#: includes/Settings/SettingsValidator.php
+msgid "Modèle OpenAI non reconnu."
+msgstr "Modèle OpenAI non reconnu."
+
+#: includes/Settings/SettingsValidator.php
+msgid "La température doit être entre 0 et 2."
+msgstr "La température doit être entre 0 et 2."
+
+#: includes/Settings/SettingsValidator.php
+msgid "Max tokens doit être entre 256 et 16000."
+msgstr "Max tokens doit être entre 256 et 16 000."
+
+#: includes/Settings/SettingsValidator.php
+msgid "Le timeout doit être entre 10 et 300 secondes."
+msgstr "Le délai d'attente doit être entre 10 et 300 secondes."
+
+#: includes/Core/Activator.php
+msgid "Techrappy SEO nécessite WordPress 6.2 ou supérieur."
+msgstr "Techrappy SEO nécessite WordPress 6.2 ou supérieur."
+
+#: includes/Core/Activator.php
+msgid "Techrappy SEO nécessite PHP 8.0 ou supérieur."
+msgstr "Techrappy SEO nécessite PHP 8.0 ou supérieur."
+
+#: views/admin/bulk-jobs/list.php
+msgid "En attente"
+msgstr "En attente"
+
+#: views/admin/bulk-jobs/list.php
+msgid "En cours"
+msgstr "En cours"
+
+#: views/admin/bulk-jobs/list.php
+msgid "Terminé"
+msgstr "Terminé"
+
+#: views/admin/bulk-jobs/list.php
+msgid "Partiel"
+msgstr "Partiel"
+
+#: views/admin/bulk-jobs/list.php
+msgid "Échec"
+msgstr "Échec"
+
+#: views/admin/bulk-jobs/list.php
+msgid "Jobs de génération"
+msgstr "Jobs de génération"
+
+#: views/admin/bulk-jobs/list.php
+msgid "Nouvelle génération"
+msgstr "Nouvelle génération"
+
+#: views/admin/bulk-jobs/list.php
+msgid "Rafraîchir"
+msgstr "Rafraîchir"
+
+#: views/admin/bulk-jobs/list.php
+msgid "Aucun job trouvé. Lancez votre première génération !"
+msgstr "Aucun job trouvé. Lancez votre première génération !"
+
+#: views/admin/logs/list.php
+msgid "Logs de génération"
+msgstr "Logs de génération"
+
+#: views/admin/logs/list.php
+msgid "Purger les jobs terminés/échoués"
+msgstr "Purger les jobs terminés/échoués"
+
+#: views/admin/logs/list.php
+msgid "Supprimer tous les jobs terminés et échoués ?"
+msgstr "Supprimer tous les jobs terminés et échoués ?"
+
+#: views/admin/logs/list.php
+msgid "Aucun log pour ce job."
+msgstr "Aucun log pour ce job."
+
+#: views/admin/template-audit/audit-result.php
+msgid "Sauvegarder le mapping"
+msgstr "Sauvegarder le mapping"
+
+#: views/admin/template-audit/audit-result.php
+msgid "Exporter le template (JSON)"
+msgstr "Exporter le template (JSON)"
+
+#: views/admin/template-audit/audit-result.php
+msgid "Importer un template"
+msgstr "Importer un template"
+
+#: views/admin/template-audit/audit-result.php
+msgid "Importer"
+msgstr "Importer"
+
+#: views/admin/bulk-jobs/city-selector.php
+msgid "Gestion automatique des menus"
+msgstr "Gestion automatique des menus"
+
+#: views/admin/bulk-jobs/city-selector.php
+msgid "Ne rien faire"
+msgstr "Ne rien faire"
+
+#: views/admin/bulk-jobs/city-selector.php
+msgid "Ajouter à un menu existant"
+msgstr "Ajouter à un menu existant"
+
+#: views/admin/bulk-jobs/city-selector.php
+msgid "Créer un nouveau menu"
+msgstr "Créer un nouveau menu"
+
+#: views/admin/bulk-jobs/city-selector.php
+msgid "Titre du post"
+msgstr "Titre du post"
+
+#: views/admin/bulk-jobs/city-selector.php
+msgid "Mot-clé + ville"
+msgstr "Mot-clé + ville"
+
+#: views/admin/bulk-jobs/city-selector.php
+msgid "Modèle personnalisé"
+msgstr "Modèle personnalisé"
