@@ -36,6 +36,7 @@
         $('#ps-editor-title').text(name);
         $('#ps-prompt-key').val(key);
         $('#ps-prompt-content').val(content);
+        $('#ps-editor-empty').hide();
         $('#ps-editor').show();
 
         // Afficher les variables disponibles pour ce prompt
@@ -157,6 +158,7 @@
         var $spinner = $('#ps-spinner-test');
         var $btn     = $('#ps-btn-test');
         var $output  = $('#ps-test-output');
+        $('#ps-test-panel').show();
 
         $spinner.addClass('is-active');
         $btn.prop('disabled', true);

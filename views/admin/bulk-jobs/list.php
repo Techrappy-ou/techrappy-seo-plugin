@@ -111,6 +111,10 @@ $status_labels = [
                                     data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>">
                                 <?php esc_html_e( 'Statut', 'techrappy-seo' ); ?>
                             </button>
+                            <a href="<?php echo esc_url( admin_url( 'admin.php?page=techrappy-seo&resume_job=' . $job['job_id'] ) ); ?>"
+                               class="button" style="margin-top:2px;display:block;text-align:center;">
+                                <?php esc_html_e( 'Suivre', 'techrappy-seo' ); ?>
+                            </a>
                         <?php endif; ?>
                         <?php if ( $is_failed ) : ?>
                             <button type="button" class="button bj-btn-retry"

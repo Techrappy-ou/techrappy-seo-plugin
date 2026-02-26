@@ -31,8 +31,10 @@ include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
                 <p style="padding:12px;"><?php esc_html_e( 'Aucun prompt en base. Activez/désactivez le plugin pour seeder les prompts par défaut.', 'techrappy-seo' ); ?></p>
             <?php else : ?>
                 <?php foreach ( $prompts as $p ) : ?>
-                    <div class="techrappy-prompt-list-item"
+                    <div class="techrappy-prompt-list-item ps-prompt-item"
                          data-key="<?php echo esc_attr( $p['prompt_key'] ); ?>"
+                         data-name="<?php echo esc_attr( $p['prompt_key'] ); ?>"
+                         data-content="<?php echo esc_attr( $p['content'] ?? '' ); ?>"
                          data-format="<?php echo esc_attr( $p['response_format'] ); ?>"
                          data-version="<?php echo esc_attr( $p['version'] ?? 1 ); ?>">
                         <strong><?php echo esc_html( $p['prompt_key'] ); ?></strong>
@@ -49,21 +51,23 @@ include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
             <div id="ps-editor-empty" style="color:#999;padding:20px;">
                 <?php esc_html_e( '← Sélectionnez un prompt dans la liste.', 'techrappy-seo' ); ?>
             </div>
-            <div id="ps-editor-form" style="display:none;">
+            <div id="ps-editor" style="display:none;">
                 <div style="margin-bottom:8px;">
-                    <strong id="ps-current-key"></strong>
+                    <strong id="ps-editor-title"></strong>
                     <span id="ps-current-format" style="margin-left:8px;color:#777;font-size:12px;"></span>
                     <span id="ps-current-version" style="margin-left:8px;color:#999;font-size:12px;"></span>
                 </div>
-                <textarea id="ps-content" class="techrappy-prompt-textarea"></textarea>
+                <input type="hidden" id="ps-prompt-key" name="ps-prompt-key">
+                <textarea id="ps-prompt-content" class="techrappy-prompt-textarea"></textarea>
                 <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
                     <button type="button" class="button button-primary" id="ps-btn-save">
                         <?php esc_html_e( 'Sauvegarder', 'techrappy-seo' ); ?>
                     </button>
+                    <span class="spinner techrappy-spinner" id="ps-spinner-save"></span>
                     <button type="button" class="button" id="ps-btn-test">
                         <?php esc_html_e( 'Tester ce prompt', 'techrappy-seo' ); ?>
                     </button>
-                    <span class="spinner techrappy-spinner" id="ps-spinner"></span>
+                    <span class="spinner techrappy-spinner" id="ps-spinner-test"></span>
                 </div>
 
                 <?php /* ── Variables connues ────────────────────────────────── */ ?>

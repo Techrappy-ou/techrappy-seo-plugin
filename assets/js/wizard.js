@@ -7,6 +7,7 @@
     var currentStep = 1;
     var currentJobId = null;
     var pollTimer = null;
+    var doneTimer = null;
 
     // Étapes du pipeline IA (dans l'ordre d'exécution).
     var PIPELINE_STEPS = [
@@ -408,7 +409,8 @@
                         $('#wz_spinner').removeClass('is-active');
                         $('#wz_progress_msg').text('Terminé !');
 
-                        setTimeout(function () {
+                        doneTimer = setTimeout(function () {
+                            doneTimer = null;
                             $('#wz_progress').hide();
                             var result = data.result || {};
                             if (result.permalink) { $('#wz_post_link').attr('href', result.permalink); }
@@ -437,6 +439,7 @@
 
     function stopPolling() {
         if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+        if (doneTimer) { clearTimeout(doneTimer); doneTimer = null; }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -505,8 +508,7 @@
     // ──────────────────────────────────────────────────────────────────────────
 
     function resetStep6() {
-        $('#wz_done, #wz_failed').hide();
-        $('#wz_progress').show();
+        $('#wz_done, #wz_failed, #wz_progress').hide();
         $('#wz_log_output').empty();
         $('#wz_progress_msg').text('Initialisation…');
     }
@@ -516,6 +518,27 @@
 
         resetStep6();
         showStep(1);
+
+        // Reprise d'un job depuis la liste (paramètre URL resume_job).
+        if (window.URLSearchParams) {
+            var resumeJobId = new URLSearchParams(window.location.search).get('resume_job');
+            if (resumeJobId) {
+                currentJobId = resumeJobId;
+                showStep(TOTAL_STEPS);
+                $('#wz_progress').show();
+                appendLog('[INFO] Reprise du suivi du job ' + resumeJobId + '…');
+                TechrappySEOAjax(
+                    'techrappy_get_job_status',
+                    { nonce: TechrappySEO.nonces.bulk, job_id: resumeJobId },
+                    function (data) {
+                        startPolling(resumeJobId, data.mode === 'bulk');
+                    },
+                    function () {
+                        startPolling(resumeJobId, false);
+                    }
+                );
+            }
+        }
 
         $('input[name="wz_mode"]').on('change', function () {
             var mode = $(this).val();

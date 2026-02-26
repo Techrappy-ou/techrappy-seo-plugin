@@ -88,6 +88,9 @@ class BulkJobManager {
             }
         }
 
+        // Passer le job parent en running dès que les enfants sont dispatchés.
+        JobRepository::update_status( $parent_id, 'running' );
+
         return $parent_id;
     }
 
