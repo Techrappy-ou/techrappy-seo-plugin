@@ -523,6 +523,13 @@
         if (window.URLSearchParams) {
             var resumeJobId = new URLSearchParams(window.location.search).get('resume_job');
             if (resumeJobId) {
+                // Nettoyer l'URL pour éviter de réafficher le résultat au prochain chargement.
+                var urlParams = new URLSearchParams(window.location.search);
+                urlParams.delete('resume_job');
+                var newSearch = urlParams.toString();
+                var newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '');
+                window.history.replaceState({}, document.title, newUrl);
+
                 currentJobId = resumeJobId;
                 showStep(TOTAL_STEPS);
                 $('#wz_progress').show();

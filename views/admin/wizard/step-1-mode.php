@@ -14,9 +14,8 @@ $steps_labels = [
     2 => __( '2. Template',   'techrappy-seo' ),
     3 => __( '3. Audit',      'techrappy-seo' ),
     4 => __( '4. WordPress',  'techrappy-seo' ),
-    5 => __( '5. SEO',        'techrappy-seo' ),
-    6 => __( '6. Plan',       'techrappy-seo' ),
-    7 => __( '7. Génération', 'techrappy-seo' ),
+    5 => __( '5. Résumé',     'techrappy-seo' ),
+    6 => __( '6. Génération', 'techrappy-seo' ),
 ];
 ?>
 <div class="wrap techrappy-seo-wrap" id="techrappy-wizard">
