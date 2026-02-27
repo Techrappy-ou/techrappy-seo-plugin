@@ -116,11 +116,18 @@ $status_labels = [
                                 <?php esc_html_e( 'Suivre', 'techrappy-seo' ); ?>
                             </a>
                         <?php endif; ?>
+                        <?php if ( $is_failed && $is_bulk ) : ?>
+                            <button type="button" class="button bj-btn-errors"
+                                    data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>"
+                                    style="margin-top:2px;display:block;width:100%;text-align:center;">
+                                🔍 <?php esc_html_e( 'Voir erreurs', 'techrappy-seo' ); ?>
+                            </button>
+                        <?php endif; ?>
                         <?php if ( $is_failed ) : ?>
                             <button type="button" class="button bj-btn-retry"
                                     data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>"
                                     data-is-bulk="<?php echo esc_attr( $is_bulk ? '1' : '0' ); ?>"
-                                    style="color:#b91c1c;border-color:#b91c1c;margin-top:2px;">
+                                    style="color:#b91c1c;border-color:#b91c1c;margin-top:2px;display:block;width:100%;text-align:center;">
                                 ↺ <?php esc_html_e( 'Relancer', 'techrappy-seo' ); ?>
                             </button>
                         <?php endif; ?>

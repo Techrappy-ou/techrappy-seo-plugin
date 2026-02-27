@@ -115,6 +115,42 @@
             openModal(jobId);
         });
 
+        // Bouton "Voir erreurs" (bulk parent en échec partiel)
+        $(document).on('click', '.bj-btn-errors', function () {
+            var jobId  = $(this).data('job-id');
+            var $modal = $('#bj-status-modal');
+            $('#bj-modal-title').text('Erreurs du job ' + jobId);
+            $('#bj-modal-content').html('<p><span class="spinner is-active" style="float:none;vertical-align:middle;"></span> Chargement…</p>');
+            $modal.show();
+
+            TechrappySEOAjax(
+                'techrappy_get_bulk_errors',
+                { nonce: TechrappySEO.nonces.bulk, job_id: jobId },
+                function (data) {
+                    var errors = data.errors || [];
+                    if (!errors.length) {
+                        $('#bj-modal-content').html('<p>Aucune erreur trouvée dans les jobs enfants.</p>');
+                        return;
+                    }
+                    var html = '<table class="wp-list-table widefat fixed striped">';
+                    html += '<thead><tr><th>Mot-clé</th><th>Ville</th><th>Erreur</th></tr></thead><tbody>';
+                    errors.forEach(function (e) {
+                        html += '<tr>';
+                        html += '<td>' + $('<span>').text(e.keyword).html() + '</td>';
+                        html += '<td>' + $('<span>').text(e.city || '—').html() + '</td>';
+                        html += '<td style="color:#721c24;font-family:monospace;font-size:11px;">' + $('<span>').text(e.last_error).html() + '</td>';
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table>';
+                    html += '<p style="margin-top:8px;font-size:12px;color:#555;">Affichage des 10 premiers jobs en échec.</p>';
+                    $('#bj-modal-content').html(html);
+                },
+                function (err) {
+                    $('#bj-modal-content').html('<p style="color:red;">' + ((err && err.message) || 'Erreur.') + '</p>');
+                }
+            );
+        });
+
         // Bouton relancer (retry)
         $(document).on('click', '.bj-btn-retry', function () {
             var jobId  = $(this).data('job-id');

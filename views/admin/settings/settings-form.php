@@ -28,6 +28,10 @@ include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
                     <input type="password" id="openai_api_key" name="openai_api_key"
                            class="regular-text" autocomplete="off"
                            placeholder="<?php echo esc_attr( $masked ?: 'sk-...' ); ?>">
+                    <button type="button" class="button" id="techrappy-test-api" style="margin-left:6px;">
+                        <?php esc_html_e( 'Tester la connexion', 'techrappy-seo' ); ?>
+                    </button>
+                    <span id="techrappy-test-result" style="margin-left:8px;font-weight:600;"></span>
                     <p class="description"><?php esc_html_e( 'Laisser vide pour conserver la clé actuelle.', 'techrappy-seo' ); ?></p>
                 </td>
             </tr>
@@ -165,6 +169,25 @@ include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
 
 <script>
 jQuery(function($) {
+    // Test connexion API.
+    $('#techrappy-test-api').on('click', function() {
+        var $btn    = $(this);
+        var $result = $('#techrappy-test-result');
+        $btn.prop('disabled', true);
+        $result.text('<?php echo esc_js( __( 'Test en cours…', 'techrappy-seo' ) ); ?>').css('color', '#555');
+
+        TechrappySEOAjax('techrappy_test_api_connection', { nonce: TechrappySEO.nonces.settings },
+            function(res) {
+                $btn.prop('disabled', false);
+                $result.text(res.message || '').css('color', '#155724');
+            },
+            function(err) {
+                $btn.prop('disabled', false);
+                $result.text((err && err.message) ? err.message : '<?php echo esc_js( __( 'Erreur inconnue.', 'techrappy-seo' ) ); ?>').css('color', '#b91c1c');
+            }
+        );
+    });
+
     $('#techrappy-settings-form').on('submit', function(e) {
         e.preventDefault();
         var $btn = $('#techrappy-settings-save');

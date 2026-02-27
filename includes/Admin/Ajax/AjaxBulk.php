@@ -266,6 +266,51 @@ class AjaxBulk {
     }
 
     /**
+     * Retourne un échantillon d'erreurs des jobs enfants d'un bulk parent.
+     *
+     * @return void
+     */
+    public function handle_get_bulk_errors(): void {
+        check_ajax_referer( 'techrappy_seo_bulk', 'nonce' );
+
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $parent_id = sanitize_text_field( $_POST['job_id'] ?? '' );
+
+        if ( ! $parent_id ) {
+            wp_send_json_error( [ 'message' => __( 'job_id manquant.', 'techrappy-seo' ) ], 400 );
+        }
+
+        $children = JobRepository::list( [
+            'parent_job_id' => $parent_id,
+            'status'        => 'failed',
+            'limit'         => 10,
+        ] );
+
+        $errors = [];
+        foreach ( $children as $child ) {
+            $logs = is_array( $child['logs'] ) ? $child['logs'] : [];
+            $last_error = '';
+            foreach ( array_reverse( $logs ) as $log ) {
+                if ( ( $log['level'] ?? '' ) === 'error' ) {
+                    $last_error = $log['step'] . ' → ' . $log['msg'];
+                    break;
+                }
+            }
+            $errors[] = [
+                'keyword'    => $child['keyword'] ?? '',
+                'city'       => $child['city']    ?? '',
+                'last_error' => $last_error ?: __( 'Aucun log d\'erreur enregistré.', 'techrappy-seo' ),
+            ];
+        }
+
+        wp_send_json_success( [ 'errors' => $errors ] );
+    }
+
+    /**
      * Retourne le statut et la progression d'un job (single ou bulk).
      *
      * @return void

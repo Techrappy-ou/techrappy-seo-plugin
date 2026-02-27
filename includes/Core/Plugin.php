@@ -52,11 +52,29 @@ final class Plugin {
         $this->version = TECHRAPPY_SEO_VERSION;
         $this->loader  = new Loader();
         $this->load_dependencies();
+        $this->maybe_upgrade();
         $this->define_admin_hooks();
         $this->define_ajax_hooks();
         $this->define_scheduler_hooks();
         $this->define_frontend_hooks();
         $this->loader->run();
+    }
+
+    /**
+     * Lance les migrations de schéma et le seeding des prompts si nécessaire.
+     * Permet de récupérer une installation mise à jour par FTP sans réactivation.
+     *
+     * @return void
+     */
+    private function maybe_upgrade(): void {
+        if ( ! Installer::needs_upgrade() ) {
+            return;
+        }
+
+        Installer::create_tables();
+        \TechrappySEO\Settings\SettingsRepository::init_defaults();
+        \TechrappySEO\Prompts\DefaultPrompts::seed();
+        update_option( 'techrappy_seo_db_version', Installer::DB_VERSION, false );
     }
 
     /**
@@ -131,8 +149,9 @@ final class Plugin {
         $this->loader->add_action( 'wp_ajax_techrappy_get_cities', $ajax_bulk, 'handle_get_cities' );
         $this->loader->add_action( 'wp_ajax_techrappy_preview_city', $ajax_bulk, 'handle_preview_city' );
         $this->loader->add_action( 'wp_ajax_techrappy_launch_bulk', $ajax_bulk, 'handle_launch_bulk' );
-        $this->loader->add_action( 'wp_ajax_techrappy_get_job_status', $ajax_bulk, 'handle_get_job_status' );
-        $this->loader->add_action( 'wp_ajax_techrappy_retry_job',      $ajax_bulk, 'handle_retry_job' );
+        $this->loader->add_action( 'wp_ajax_techrappy_get_job_status',  $ajax_bulk, 'handle_get_job_status' );
+        $this->loader->add_action( 'wp_ajax_techrappy_retry_job',       $ajax_bulk, 'handle_retry_job' );
+        $this->loader->add_action( 'wp_ajax_techrappy_get_bulk_errors', $ajax_bulk, 'handle_get_bulk_errors' );
 
         // Audit de templates.
         $ajax_audit = new \TechrappySEO\Admin\Ajax\AjaxTemplateAudit();
@@ -149,7 +168,8 @@ final class Plugin {
 
         // Settings.
         $ajax_settings = new \TechrappySEO\Admin\Ajax\AjaxSettings();
-        $this->loader->add_action( 'wp_ajax_techrappy_save_settings', $ajax_settings, 'handle_save' );
+        $this->loader->add_action( 'wp_ajax_techrappy_save_settings',       $ajax_settings, 'handle_save' );
+        $this->loader->add_action( 'wp_ajax_techrappy_test_api_connection', $ajax_settings, 'handle_test_connection' );
 
         // Logs.
         $ajax_logs = new \TechrappySEO\Admin\Ajax\AjaxLogs();
