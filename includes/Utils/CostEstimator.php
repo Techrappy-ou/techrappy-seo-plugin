@@ -24,10 +24,22 @@ class CostEstimator {
      * @var array<string, array{input: float, output: float}>
      */
     private static array $pricing = [
-        'gpt-4o'        => [ 'input' => 0.005,   'output' => 0.015  ],
-        'gpt-4o-mini'   => [ 'input' => 0.00015, 'output' => 0.0006 ],
-        'gpt-4-turbo'   => [ 'input' => 0.01,    'output' => 0.03   ],
-        'gpt-3.5-turbo' => [ 'input' => 0.0005,  'output' => 0.0015 ],
+        // GPT-4o series
+        'gpt-4o'             => [ 'input' => 0.005,    'output' => 0.015   ],
+        'gpt-4o-mini'        => [ 'input' => 0.00015,  'output' => 0.0006  ],
+        // GPT-4.1 series (2025)
+        'gpt-4.1'            => [ 'input' => 0.002,    'output' => 0.008   ],
+        'gpt-4.1-mini'       => [ 'input' => 0.0004,   'output' => 0.0016  ],
+        'gpt-4.1-nano'       => [ 'input' => 0.0001,   'output' => 0.0004  ],
+        // o-series (raisonnement)
+        'o3'                 => [ 'input' => 0.01,     'output' => 0.04    ],
+        'o3-mini'            => [ 'input' => 0.0011,   'output' => 0.0044  ],
+        'o4-mini'            => [ 'input' => 0.0011,   'output' => 0.0044  ],
+        'o1'                 => [ 'input' => 0.015,    'output' => 0.06    ],
+        'o1-mini'            => [ 'input' => 0.003,    'output' => 0.012   ],
+        // Héritage
+        'gpt-4-turbo'        => [ 'input' => 0.01,     'output' => 0.03    ],
+        'gpt-3.5-turbo'      => [ 'input' => 0.0005,   'output' => 0.0015  ],
     ];
 
     /**

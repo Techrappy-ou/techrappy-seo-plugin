@@ -38,13 +38,43 @@ include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
             <tr>
                 <th scope="row"><label for="openai_model"><?php esc_html_e( 'Modèle', 'techrappy-seo' ); ?></label></th>
                 <td>
-                    <select id="openai_model" name="openai_model">
-                        <?php foreach ( [ 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo' ] as $m ) : ?>
-                            <option value="<?php echo esc_attr( $m ); ?>" <?php selected( $settings['openai_model'] ?? 'gpt-4o', $m ); ?>>
-                                <?php echo esc_html( $m ); ?>
-                            </option>
+                    <?php
+                    $current_model = $settings['openai_model'] ?? 'gpt-4o';
+                    $model_groups  = [
+                        'GPT-4o — Recommandés' => [
+                            'gpt-4o'             => 'GPT-4o          — Meilleure qualité, multimodal',
+                            'gpt-4o-mini'        => 'GPT-4o mini     — Rapide & économique ★',
+                            'gpt-4.1'            => 'GPT-4.1         — Dernière génération (2025)',
+                            'gpt-4.1-mini'       => 'GPT-4.1 mini    — Rapide, moins cher que 4o',
+                            'gpt-4.1-nano'       => 'GPT-4.1 nano    — Ultra-rapide, très économique',
+                        ],
+                        'Raisonnement (o-series)' => [
+                            'o3'                 => 'o3              — Raisonnement avancé (lent)',
+                            'o3-mini'            => 'o3-mini         — Raisonnement léger',
+                            'o4-mini'            => 'o4-mini         — Raisonnement rapide (2025)',
+                            'o1'                 => 'o1              — Raisonnement (ancien)',
+                            'o1-mini'            => 'o1-mini         — Raisonnement économique',
+                        ],
+                        'Héritage' => [
+                            'gpt-4-turbo'        => 'GPT-4 Turbo     — Ancien flagship',
+                            'gpt-3.5-turbo'      => 'GPT-3.5 Turbo   — Très économique, qualité moindre',
+                        ],
+                    ];
+                    ?>
+                    <select id="openai_model" name="openai_model" style="min-width:340px;">
+                        <?php foreach ( $model_groups as $group_label => $models ) : ?>
+                            <optgroup label="<?php echo esc_attr( $group_label ); ?>">
+                                <?php foreach ( $models as $id => $label ) : ?>
+                                    <option value="<?php echo esc_attr( $id ); ?>" <?php selected( $current_model, $id ); ?>>
+                                        <?php echo esc_html( $label ); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </optgroup>
                         <?php endforeach; ?>
                     </select>
+                    <p class="description">
+                        <?php esc_html_e( 'Pour la rédaction SEO : GPT-4o mini (bon rapport qualité/prix) ou GPT-4o (meilleure qualité). Les modèles o-series sont plus lents et chers.', 'techrappy-seo' ); ?>
+                    </p>
                 </td>
             </tr>
             <tr>
