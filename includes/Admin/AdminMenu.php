@@ -107,6 +107,16 @@ class AdminMenu {
             'techrappy-seo-logs',
             [ $this, 'render_logs_page' ]
         );
+
+        // ── Sous-page : Diagnostic ────────────────────────────────────────
+        add_submenu_page(
+            self::PARENT_SLUG,
+            __( 'Diagnostic', 'techrappy-seo' ),
+            __( '🔧 Diagnostic', 'techrappy-seo' ),
+            TECHRAPPY_SEO_CAPABILITY,
+            'techrappy-seo-diagnostic',
+            [ $this, 'render_diagnostic_page' ]
+        );
     }
 
     /**
@@ -184,6 +194,19 @@ class AdminMenu {
             wp_die( esc_html__( 'Accès non autorisé.', 'techrappy-seo' ) );
         }
         $page = new Pages\PageLogs();
+        $page->render();
+    }
+
+    /**
+     * Rendu de la page Diagnostic.
+     *
+     * @return void
+     */
+    public function render_diagnostic_page(): void {
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_die( esc_html__( 'Accès non autorisé.', 'techrappy-seo' ) );
+        }
+        $page = new Pages\PageDiagnostic();
         $page->render();
     }
 }
