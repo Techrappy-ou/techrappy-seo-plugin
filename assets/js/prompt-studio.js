@@ -1,4 +1,4 @@
-/* assets/js/prompt-studio.js — Techrappy SEO Prompt Studio */
+/* assets/js/prompt-studio.js — Techrappy SEO Prompt Studio v2 */
 /* global TechrappySEO, TechrappySEOAjax */
 (function ($) {
     'use strict';
@@ -6,7 +6,7 @@
     var currentPromptKey = null;
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Helpers
+    // Notices
     // ──────────────────────────────────────────────────────────────────────────
 
     function showNotice(msg, type) {
@@ -20,6 +20,15 @@
     }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // Compteur de caractères
+    // ──────────────────────────────────────────────────────────────────────────
+
+    function updateCharCount() {
+        var len = $('#ps-prompt-content').val().length;
+        $('#ps-char-count').text(len.toLocaleString('fr-FR') + ' car.');
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Sélection d'un prompt dans la liste
     // ──────────────────────────────────────────────────────────────────────────
 
@@ -27,45 +36,111 @@
         currentPromptKey = key;
 
         $('.ps-prompt-item').removeClass('active');
-        $('.ps-prompt-item[data-key="' + key + '"]').addClass('active');
+        var $item = $('.ps-prompt-item[data-key="' + key + '"]').addClass('active');
 
-        var $item = $('.ps-prompt-item[data-key="' + key + '"]');
         var content = $item.data('content') || '';
-        var name    = $item.data('name')    || key;
+        var label   = $item.data('label')   || key;
+        var desc    = $item.data('desc')    || '';
+        var format  = $item.data('format')  || 'json_object';
+        var version = $item.data('version') || 1;
 
-        $('#ps-editor-title').text(name);
         $('#ps-prompt-key').val(key);
         $('#ps-prompt-content').val(content);
+        $('#ps-editor-title').text(label);
+        $('#ps-editor-desc').text(desc);
+        $('#ps-current-version').text('v' + version);
+
+        var $fmt = $('#ps-current-format');
+        $fmt.text(format === 'json_object' ? 'JSON' : 'TEXT')
+            .removeClass('ps-fmt-json ps-fmt-txt')
+            .addClass(format === 'json_object' ? 'ps-fmt-json' : 'ps-fmt-txt');
+
+        buildVarsChips(key, $item);
+
+        $('#ps-test-panel').hide();
+        $('#ps-test-output').hide();
+        buildTestVarInputs($item);
+
         $('#ps-editor-empty').hide();
         $('#ps-editor').show();
 
-        // Afficher les variables disponibles pour ce prompt
-        updateVariablesPanel(key);
-
-        // Charger l'historique
-        loadHistory(key);
-
+        updateCharCount();
         clearNotice();
     }
 
-    function updateVariablesPanel(key) {
-        var $panel = $('#ps-variables-list');
-        if (!$panel.length) { return; }
+    // ──────────────────────────────────────────────────────────────────────────
+    // Variables chips (clic = insérer dans textarea)
+    // ──────────────────────────────────────────────────────────────────────────
 
-        var vars = TechrappySEO.prompt_variables && TechrappySEO.prompt_variables[key]
-            ? TechrappySEO.prompt_variables[key]
-            : [];
+    function parseVars($item) {
+        try {
+            return JSON.parse($item.attr('data-vars') || '[]') || [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function buildVarsChips(key, $item) {
+        var vars   = parseVars($item);
+        var $bar   = $('#ps-vars-bar');
+        var $chips = $('#ps-vars-chips');
 
         if (!vars.length) {
-            $panel.html('<p class="description">Aucune variable définie pour ce prompt.</p>');
+            $bar.hide();
             return;
         }
 
         var html = '';
         vars.forEach(function (v) {
-            html += '<code class="ps-var-tag" style="cursor:pointer;margin:2px;display:inline-block;" data-var="' + v + '">{{' + v + '}}</code> ';
+            html += '<span class="ps-var-chip" data-var="' + v + '">{{' + v + '}}</span>';
         });
-        $panel.html(html);
+        $chips.html(html);
+        $bar.show();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Inputs de test (générés dynamiquement)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    function buildTestVarInputs($item) {
+        var vars  = parseVars($item);
+        var $grid = $('#ps-test-vars-grid');
+
+        if (!vars.length) {
+            $grid.html('<p class="ps-test-hint" style="margin:0;">Ce prompt n\'a pas de variables à renseigner.</p>');
+            return;
+        }
+
+        var html = '';
+        vars.forEach(function (v) {
+            html += '<div class="ps-test-var-wrap">'
+                  + '<label>{{' + v + '}}</label>'
+                  + '<input type="text" class="ps-test-var-input" data-var="' + v + '" placeholder="valeur de test…">'
+                  + '</div>';
+        });
+        $grid.html(html);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Insertion de variable au curseur
+    // ──────────────────────────────────────────────────────────────────────────
+
+    function insertVariable(varName) {
+        var $ta   = $('#ps-prompt-content');
+        var ta    = $ta[0];
+        var val   = $ta.val();
+        var token = '{{' + varName + '}}';
+
+        if (ta.selectionStart !== undefined) {
+            var start = ta.selectionStart;
+            var end   = ta.selectionEnd;
+            $ta.val(val.substring(0, start) + token + val.substring(end));
+            ta.selectionStart = ta.selectionEnd = start + token.length;
+            $ta.focus();
+        } else {
+            $ta.val(val + token);
+        }
+        updateCharCount();
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -93,13 +168,12 @@
             function () {
                 $spinner.removeClass('is-active');
                 $btn.prop('disabled', false);
-                showNotice('Prompt sauvegardé.', 'success');
-
-                // Mettre à jour le data-content dans la liste
-                $('.ps-prompt-item[data-key="' + key + '"]').data('content', content);
-
-                // Recharger l'historique
-                loadHistory(key);
+                showNotice('Prompt "' + $('#ps-editor-title').text() + '" sauvegardé.', 'success');
+                var $item  = $('.ps-prompt-item[data-key="' + key + '"]');
+                $item.data('content', content);
+                var newVer = (parseInt($item.data('version'), 10) || 1) + 1;
+                $item.data('version', newVer);
+                $('#ps-current-version').text('v' + newVer);
             },
             function (err) {
                 $spinner.removeClass('is-active');
@@ -110,10 +184,44 @@
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Reset prompts
+    // Réinitialiser UN prompt
     // ──────────────────────────────────────────────────────────────────────────
 
-    function resetPrompts() {
+    function resetOnePrompt() {
+        var key   = $('#ps-prompt-key').val();
+        var label = $('#ps-editor-title').text() || key;
+
+        if (!key) { return; }
+        if (!window.confirm('Remettre "' + label + '" à sa valeur par défaut ? Vos modifications seront perdues.')) {
+            return;
+        }
+
+        var $btn = $('#ps-btn-reset-one');
+        $btn.prop('disabled', true);
+
+        TechrappySEOAjax(
+            'techrappy_reset_prompt_one',
+            { nonce: TechrappySEO.nonces.prompt_studio, prompt_key: key },
+            function (data) {
+                $btn.prop('disabled', false);
+                var content = data.content || '';
+                $('#ps-prompt-content').val(content);
+                $('.ps-prompt-item[data-key="' + key + '"]').data('content', content);
+                updateCharCount();
+                showNotice('Prompt "' + label + '" réinitialisé aux valeurs par défaut.', 'success');
+            },
+            function (err) {
+                $btn.prop('disabled', false);
+                showNotice(err.message || 'Erreur lors de la réinitialisation.');
+            }
+        );
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Réinitialiser TOUS les prompts
+    // ──────────────────────────────────────────────────────────────────────────
+
+    function resetAllPrompts() {
         if (!window.confirm('Réinitialiser TOUS les prompts aux valeurs par défaut ? Cette action est irréversible.')) {
             return;
         }
@@ -136,49 +244,58 @@
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Test de prompt
+    // Panneau de test
     // ──────────────────────────────────────────────────────────────────────────
 
-    function testPrompt() {
+    function toggleTestPanel() {
+        var $panel = $('#ps-test-panel');
+        if ($panel.is(':visible')) {
+            $panel.hide();
+        } else {
+            $panel.show();
+            $('#ps-test-output').hide();
+        }
+    }
+
+    function runTest() {
         var key     = $('#ps-prompt-key').val();
         var content = $('#ps-prompt-content').val().trim();
 
         if (!key || !content) {
-            showNotice('Sélectionnez et rédigez un prompt avant de tester.');
+            showNotice('Sélectionnez un prompt avant de tester.');
             return;
         }
 
-        // Collecter les variables saisies
         var variables = {};
-        $('#ps-test-variables .ps-test-var-input').each(function () {
-            var varKey = $(this).data('var');
-            variables[varKey] = $(this).val();
+        $('#ps-test-vars-grid .ps-test-var-input').each(function () {
+            variables[$(this).data('var')] = $(this).val();
         });
 
-        var $spinner = $('#ps-spinner-test');
-        var $btn     = $('#ps-btn-test');
+        var $spinner = $('#ps-spinner-run-test');
+        var $btn     = $('#ps-btn-run-test');
         var $output  = $('#ps-test-output');
-        $('#ps-test-panel').show();
 
         $spinner.addClass('is-active');
         $btn.prop('disabled', true);
-        $output.text('Génération en cours…');
+        $output.show();
+        $('#ps-test-result').text('Génération en cours…');
         $('#ps-test-duration').text('');
-
-        var postData = {
-            nonce:      TechrappySEO.nonces.prompt_studio,
-            prompt_key: key,
-            content:    content,
-            variables:  JSON.stringify(variables),
-        };
 
         TechrappySEOAjax(
             'techrappy_test_prompt',
-            postData,
+            {
+                nonce:      TechrappySEO.nonces.prompt_studio,
+                prompt_key: key,
+                content:    content,
+                variables:  JSON.stringify(variables),
+            },
             function (data) {
                 $spinner.removeClass('is-active');
                 $btn.prop('disabled', false);
-                $output.text(typeof data.result === 'string' ? data.result : JSON.stringify(data.result, null, 2));
+                var result = data.result;
+                $('#ps-test-result').text(
+                    typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+                );
                 if (data.duration_ms) {
                     $('#ps-test-duration').text('Durée : ' + (data.duration_ms / 1000).toFixed(2) + 's');
                 }
@@ -186,45 +303,9 @@
             function (err) {
                 $spinner.removeClass('is-active');
                 $btn.prop('disabled', false);
-                $output.text('Erreur : ' + (err.message || 'Inconnue'));
+                $('#ps-test-result').text('Erreur : ' + (err.message || 'Inconnue'));
             }
         );
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Historique
-    // ──────────────────────────────────────────────────────────────────────────
-
-    function loadHistory(key) {
-        var $list = $('#ps-history-list');
-        if (!$list.length) { return; }
-
-        $list.html('<p><span class="spinner is-active" style="float:none;vertical-align:middle;"></span></p>');
-
-        // L'historique est chargé côté PHP dans la liste — on utilise les données déjà présentes
-        // (PromptVersioner stocke dans wp_options, pas d'endpoint dédié — on affiche ce qui est déjà rendu)
-        $list.html('<p class="description">Sauvegardez le prompt pour voir les nouvelles versions ici.</p>');
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Insertion de variable dans le textarea
-    // ──────────────────────────────────────────────────────────────────────────
-
-    function insertVariable(varName) {
-        var $ta = $('#ps-prompt-content');
-        var ta  = $ta[0];
-        var val = $ta.val();
-        var token = '{{' + varName + '}}';
-
-        if (ta.selectionStart !== undefined) {
-            var start = ta.selectionStart;
-            var end   = ta.selectionEnd;
-            $ta.val(val.substring(0, start) + token + val.substring(end));
-            ta.selectionStart = ta.selectionEnd = start + token.length;
-            $ta.focus();
-        } else {
-            $ta.val(val + token);
-        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -234,42 +315,25 @@
     function init() {
         if (!$('#techrappy-prompt-studio').length) { return; }
 
-        // Ajouter le div notice s'il n'existe pas
-        if (!$('#ps-notice').length) {
-            $('#techrappy-prompt-studio').prepend('<div id="ps-notice"></div>');
-        }
-
-        // Sélectionner le premier prompt par défaut
         var $first = $('.ps-prompt-item:first');
         if ($first.length) {
             selectPrompt($first.data('key'));
         }
 
-        // Clic sur un prompt dans la liste
-        $(document).on('click', '.ps-prompt-item', function () {
-            selectPrompt($(this).data('key'));
-        });
+        $(document).on('click', '.ps-prompt-item',         function () { selectPrompt($(this).data('key')); });
+        $(document).on('click', '#ps-btn-save',             savePrompt);
+        $(document).on('click', '#ps-btn-reset-one',        resetOnePrompt);
+        $(document).on('click', '#ps-btn-reset',            resetAllPrompts);
+        $(document).on('click', '#ps-btn-test',             toggleTestPanel);
+        $(document).on('click', '#ps-btn-run-test',         runTest);
+        $(document).on('click', '.ps-var-chip',             function () { insertVariable($(this).data('var')); });
+        $(document).on('input keyup', '#ps-prompt-content', updateCharCount);
 
-        // Sauvegarde
-        $(document).on('click', '#ps-btn-save', savePrompt);
-
-        // Raccourci clavier Ctrl+S
         $(document).on('keydown', '#ps-prompt-content', function (e) {
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
                 savePrompt();
             }
-        });
-
-        // Reset
-        $(document).on('click', '#ps-btn-reset', resetPrompts);
-
-        // Test
-        $(document).on('click', '#ps-btn-test', testPrompt);
-
-        // Insertion variable (clic sur tag)
-        $(document).on('click', '.ps-var-tag', function () {
-            insertVariable($(this).data('var'));
         });
     }
 

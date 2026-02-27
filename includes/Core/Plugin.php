@@ -165,6 +165,7 @@ final class Plugin {
         $this->loader->add_action( 'wp_ajax_techrappy_save_prompt', $ajax_prompts, 'handle_save' );
         $this->loader->add_action( 'wp_ajax_techrappy_reset_prompts', $ajax_prompts, 'handle_reset' );
         $this->loader->add_action( 'wp_ajax_techrappy_test_prompt', $ajax_prompts, 'handle_test' );
+        $this->loader->add_action( 'wp_ajax_techrappy_reset_prompt_one', $ajax_prompts, 'handle_reset_one' );
 
         // Settings.
         $ajax_settings = new \TechrappySEO\Admin\Ajax\AjaxSettings();

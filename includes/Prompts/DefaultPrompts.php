@@ -89,16 +89,21 @@ PROMPT,
 Tu es expert SEO et rédacteur web depuis 15 ans pour {{profession}}.
 
 Mot-clé : {{mot_cle}}
+Ville : {{city}}
 Analyse d'intention : {{intent_json}}
 
 Objectif : proposer un plan SEO complet, hiérarchisé, supérieur à la SERP.
 
-Contraintes :
+Règles H1 (OBLIGATOIRES) :
+- Si {{city}} est fourni : H1 = EXACTEMENT "{{mot_cle}} {{city}}" — pas de reformulation, pas de créativité.
+- Si aucune ville : propose un H1 accrocheur SEO (60 car. max).
+
+Autres contraintes :
 - H2 = sujets indispensables, pas de titres vagues.
 - Inclure une FAQ (5 questions).
 - Prévoir un emplacement CTA.
 - Si page locale : inclure un bloc "spécificités locales" sans inventer de lieux précis.
-- Fournir un slug suggéré SEO-friendly.
+- Fournir un slug suggéré SEO-friendly (dérivé du H1).
 
 FORMAT (JSON strict) :
 {

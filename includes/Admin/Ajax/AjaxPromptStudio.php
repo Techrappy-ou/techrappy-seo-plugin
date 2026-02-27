@@ -96,6 +96,48 @@ class AjaxPromptStudio {
     }
 
     /**
+     * Remet UN prompt spécifique à sa valeur par défaut.
+     *
+     * @return void
+     */
+    public function handle_reset_one(): void {
+        check_ajax_referer( 'techrappy_seo_prompt_studio', 'nonce' );
+
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $key = sanitize_key( $_POST['prompt_key'] ?? '' );
+
+        if ( ! $key ) {
+            wp_send_json_error( [ 'message' => __( 'Clé du prompt requise.', 'techrappy-seo' ) ], 400 );
+        }
+
+        $defaults = DefaultPrompts::get_defaults();
+
+        if ( ! isset( $defaults[ $key ] ) ) {
+            wp_send_json_error( [ 'message' => __( 'Prompt par défaut introuvable.', 'techrappy-seo' ) ], 404 );
+        }
+
+        $content = $defaults[ $key ]['content'];
+        $format  = $defaults[ $key ]['response_format'] ?? 'json_object';
+        $repo    = new PromptRepository();
+
+        if ( $repo->exists( $key ) ) {
+            $repo->update( $key, $content );
+        } else {
+            $repo->insert( $key, $content, $format );
+        }
+
+        wp_send_json_success( [
+            'reset'      => true,
+            'prompt_key' => $key,
+            'content'    => $content,
+        ] );
+    }
+
+    /**
      * Teste un prompt avec des variables fournies en direct via AIClient.
      *
      * @return void
