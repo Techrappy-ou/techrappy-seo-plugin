@@ -31,15 +31,25 @@ class TokenReplacer {
      */
     public function replace( string $content, array $token_map ): string {
         foreach ( $token_map as $token => $value ) {
+            $val = (string) $value;
+
+            // Remplacement standard {{TOKEN}}.
+            $content = str_replace( '{{' . $token . '}}', $val, $content );
+
+            // Remplacement encodé HTML : Divi encode parfois {{ → &#123;&#123;
+            // ce qui empêche le remplacement standard et laisse le token en brut.
             $content = str_replace(
-                '{{' . $token . '}}',
-                (string) $value,
+                '&#123;&#123;' . $token . '&#125;&#125;',
+                esc_attr( $val ),
                 $content
             );
         }
 
         // Nettoyer les tokens non résolus (laissés vides).
         $content = preg_replace( TokenScanner::TOKEN_PATTERN, '', $content ) ?? $content;
+
+        // Nettoyer aussi les tokens encodés HTML non résolus.
+        $content = preg_replace( '/&#123;&#123;[A-Za-z0-9_]+&#125;&#125;/', '', $content ) ?? $content;
 
         return $content;
     }

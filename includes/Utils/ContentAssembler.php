@@ -64,6 +64,9 @@ class ContentAssembler {
         $intro = $steps_data['intro']['data'] ?? [];
         $tokens['intro_longue_html']    = $intro['intro_longue_html']    ?? '';
         $tokens['intro_courte_mobile']  = $intro['intro_courte_mobile']  ?? '';
+        // phrase_h1 : sous-titre/accroche du hero, utilisé dans les templates Divi.
+        // On mappe sur intro_courte_mobile (phrase courte synthétique).
+        $tokens['phrase_h1']            = $intro['intro_courte_mobile']  ?? '';
 
         // ── Conclusion + CTA ─────────────────────────────────────────────────
         $conclusion = $steps_data['conclusion_cta']['data'] ?? [];

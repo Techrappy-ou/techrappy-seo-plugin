@@ -59,9 +59,15 @@ class StepPlan implements StepInterface {
         // ── Forcer H1 = mot-clé + ville pour les pages locales ────────────────
         // L'IA génère souvent un H1 créatif ("Trouver le meilleur...") alors que
         // pour le SEO local on veut EXACTEMENT "keyword ville".
+        // On n'ajoute la ville que si elle n'est pas déjà dans le mot-clé
+        // (évite "Ostéopathe Blagnac Blagnac").
         if ( ! empty( $job['city'] ) ) {
-            $h1_local              = trim( ( $job['keyword'] ?? '' ) . ' ' . $job['city'] );
-            $result['H1']          = $h1_local;
+            $keyword  = trim( $job['keyword'] ?? '' );
+            $city     = trim( $job['city'] );
+            $h1_local = ( false === mb_stripos( $keyword, $city ) )
+                ? $keyword . ' ' . $city
+                : $keyword;
+            $result['H1']           = $h1_local;
             $result['slug_suggere'] = sanitize_title( $h1_local );
             $logger->info( 'plan', 'H1 local forcé : ' . $h1_local );
         }
