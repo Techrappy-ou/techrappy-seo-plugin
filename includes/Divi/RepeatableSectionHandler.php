@@ -41,7 +41,18 @@ class RepeatableSectionHandler {
 
     /**
      * Expanse la section répétable en N copies (une par bloc).
-     * Si aucun marker n'est trouvé, retourne le contenu inchangé.
+     *
+     * Supporte deux modes de template :
+     *
+     * Mode A — BLOC_REPEAT (section clonée) :
+     *   Le template contient UNE section marquée {{BLOC_REPEAT}} → le handler
+     *   duplique cette section N fois, une par bloc AI.
+     *
+     * Mode B — Blocs fixes (template multi-sections) :
+     *   Le template contient N sections pré-stylées, chacune avec
+     *   {{BLOC_H2}} / {{BLOC_HTML}} en dur (pas de {{BLOC_REPEAT}}).
+     *   → remplacement séquentiel : 1re occurrence → bloc 1, 2e → bloc 2…
+     *   Les sections sans bloc correspondant sont vidées de leurs tokens.
      *
      * @param string                                                              $content Contenu Divi.
      * @param array<int, array{H2: string, html: string, micro_transition: string}> $blocks  Blocs à injecter.
@@ -56,6 +67,10 @@ class RepeatableSectionHandler {
         // Trouver la position du marker.
         $marker_pos = strpos( $content, self::REPEAT_MARKER );
         if ( false === $marker_pos ) {
+            // Mode B : pas de {{BLOC_REPEAT}} mais des {{BLOC_H2}} en dur ?
+            if ( false !== strpos( $content, '{{BLOC_H2}}' ) ) {
+                return $this->sequential_replace( $content, $blocks );
+            }
             return $content;
         }
 
@@ -140,5 +155,48 @@ class RepeatableSectionHandler {
         }
 
         return str_replace( self::REPEAT_MARKER, $html_blocks, $content );
+    }
+
+    /**
+     * Mode B : remplace séquentiellement les occurrences de {{BLOC_H2}} / {{BLOC_HTML}}
+     * dans un template avec N sections fixes pré-stylées (sans {{BLOC_REPEAT}}).
+     *
+     * Chaque itération de la boucle consomme LA PREMIÈRE occurrence restante de chaque
+     * token, ce qui permet d'affecter un bloc AI différent à chaque section du template.
+     * Les occurrences excédentaires (sections sans bloc AI correspondant) sont vidées.
+     *
+     * @param string                                                              $content
+     * @param array<int, array{H2: string, html: string, micro_transition: string}> $blocks
+     *
+     * @return string
+     */
+    private function sequential_replace( string $content, array $blocks ): string {
+        foreach ( $blocks as $block ) {
+            $content = $this->replace_first( '{{BLOC_H2}}',        $block['H2']               ?? '', $content );
+            $content = $this->replace_first( '{{BLOC_HTML}}',       $block['html']             ?? '', $content );
+            $content = $this->replace_first( '{{BLOC_TRANSITION}}', $block['micro_transition'] ?? '', $content );
+        }
+
+        // Supprimer les slots non remplis (template avait plus de sections que de blocs IA).
+        $content = str_replace( [ '{{BLOC_H2}}', '{{BLOC_HTML}}', '{{BLOC_TRANSITION}}' ], '', $content );
+
+        return $content;
+    }
+
+    /**
+     * Remplace uniquement la PREMIÈRE occurrence de $search dans $subject.
+     *
+     * @param string $search
+     * @param string $replace
+     * @param string $subject
+     *
+     * @return string
+     */
+    private function replace_first( string $search, string $replace, string $subject ): string {
+        $pos = strpos( $subject, $search );
+        if ( false === $pos ) {
+            return $subject;
+        }
+        return substr_replace( $subject, $replace, $pos, strlen( $search ) );
     }
 }
