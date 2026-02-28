@@ -293,7 +293,7 @@
             },
             function (err) {
                 appendLog('[ERROR] ' + (err.message || 'Erreur création job.'), 'error');
-                $('#wz_progress').hide();
+                $('#wz_progress, #wz_done').hide();
                 $('#wz_failed').show();
             }
         );
@@ -356,7 +356,7 @@
             },
             function (err) {
                 appendLog('[ERROR] ' + (err.message || 'Erreur lancement bulk.'), 'error');
-                $('#wz_progress').hide();
+                $('#wz_progress, #wz_done').hide();
                 $('#wz_failed').show();
             }
         );
@@ -411,7 +411,7 @@
 
                         doneTimer = setTimeout(function () {
                             doneTimer = null;
-                            $('#wz_progress').hide();
+                            $('#wz_progress, #wz_failed').hide();
                             var result = data.result || {};
                             if (result.permalink) { $('#wz_post_link').attr('href', result.permalink); }
                             if (result.post_id) {
@@ -422,7 +422,7 @@
                         }, 600);
                     } else if (status === 'failed') {
                         stopPolling();
-                        $('#wz_progress').hide();
+                        $('#wz_progress, #wz_done').hide();
                         $('#wz_failed').show();
                     } else {
                         pollTimer = setTimeout(poll, 4000);
