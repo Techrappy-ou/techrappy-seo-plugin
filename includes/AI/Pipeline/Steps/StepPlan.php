@@ -56,20 +56,24 @@ class StepPlan implements StepInterface {
             return [];
         }
 
-        // ── Forcer H1 = mot-clé + ville pour les pages locales ────────────────
-        // L'IA génère souvent un H1 créatif ("Trouver le meilleur...") alors que
-        // pour le SEO local on veut EXACTEMENT "keyword ville".
-        // On n'ajoute la ville que si elle n'est pas déjà dans le mot-clé
-        // (évite "Ostéopathe Blagnac Blagnac").
-        if ( ! empty( $job['city'] ) ) {
-            $keyword  = trim( $job['keyword'] ?? '' );
-            $city     = trim( $job['city'] );
-            $h1_local = ( false === mb_stripos( $keyword, $city ) )
-                ? $keyword . ' ' . $city
-                : $keyword;
-            $result['H1']           = $h1_local;
-            $result['slug_suggere'] = sanitize_title( $h1_local );
-            $logger->info( 'plan', 'H1 local forcé : ' . $h1_local );
+        // ── Forcer H1 = mot-clé exact (toujours) ─────────────────────────────
+        // Le titre de la page doit toujours être le mot-clé exact, jamais une
+        // reformulation créative de l'IA.
+        // Règle :
+        //   • Sans ville  → H1 = keyword
+        //   • Avec ville  → H1 = keyword + ville (sauf si ville déjà présente dans keyword)
+        //   • Bulk (profession + ville) → même règle : profession + ville
+        $keyword = trim( $job['keyword']  ?? '' );
+        $city    = trim( $job['city']     ?? '' );
+
+        $h1 = ( '' !== $city && false === mb_stripos( $keyword, $city ) )
+            ? $keyword . ' ' . $city
+            : $keyword;
+
+        if ( '' !== $h1 ) {
+            $result['H1']           = $h1;
+            $result['slug_suggere'] = sanitize_title( $h1 );
+            $logger->info( 'plan', 'H1 forcé (mot-clé exact) : ' . $h1 );
         }
 
         return $result;

@@ -92,22 +92,22 @@ Mot-clé : {{mot_cle}}
 Ville : {{city}}
 Analyse d'intention : {{intent_json}}
 
-Objectif : proposer un plan SEO complet, hiérarchisé, supérieur à la SERP.
+Le H1 est imposé automatiquement par le système (= mot-clé exact).
+Recopie-le tel quel dans "H1" sans reformulation.
 
-Règles H1 (OBLIGATOIRES) :
-- Si {{city}} est fourni : H1 = EXACTEMENT "{{mot_cle}} {{city}}" — pas de reformulation, pas de créativité.
-- Si aucune ville : propose un H1 accrocheur SEO (60 car. max).
+Objectif : proposer un plan H2/H3 SEO complet, hiérarchisé, supérieur à la SERP.
 
-Autres contraintes :
-- H2 = sujets indispensables, pas de titres vagues.
-- Inclure une FAQ (5 questions).
+Contraintes :
+- H2 = sujets indispensables à la thématique, pas de titres vagues.
+- H3 = sous-angles concrets, 2 à 4 par H2.
+- Inclure une FAQ (5 questions PAA pertinentes).
 - Prévoir un emplacement CTA.
 - Si page locale : inclure un bloc "spécificités locales" sans inventer de lieux précis.
-- Fournir un slug suggéré SEO-friendly (dérivé du H1).
+- slug_suggere : SEO-friendly, basé sur le mot-clé + ville si fournie.
 
 FORMAT (JSON strict) :
 {
-  "H1":"",
+  "H1":"{{mot_cle}}",
   "slug_suggere":"",
   "sections":[{"H2":"","intention":"","type_contenu_attendu":"","keywords_a_integrer":[],"H3":[]}],
   "cta_placement":"",
