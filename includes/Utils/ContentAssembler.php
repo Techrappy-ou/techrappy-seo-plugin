@@ -90,7 +90,7 @@ class ContentAssembler {
         $anti = $steps_data['anti_duplicate']['data'] ?? [];
         $tokens['intro_finale_html'] = $anti['intro_finale_html'] ?? '';
 
-        return array_filter( $tokens, static fn( $v ) => '' !== $v );
+        return $tokens;
     }
 
     /**

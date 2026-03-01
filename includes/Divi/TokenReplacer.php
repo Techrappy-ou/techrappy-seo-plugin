@@ -43,6 +43,13 @@ class TokenReplacer {
                 esc_attr( $val ),
                 $content
             );
+
+            // Remplacement URL-encodé : certains éditeurs encodent {{ → %7B%7B.
+            $content = str_replace(
+                '%7B%7B' . $token . '%7D%7D',
+                rawurlencode( $val ),
+                $content
+            );
         }
 
         // Nettoyer les tokens non résolus (laissés vides).
@@ -50,6 +57,9 @@ class TokenReplacer {
 
         // Nettoyer aussi les tokens encodés HTML non résolus.
         $content = preg_replace( '/&#123;&#123;[A-Za-z0-9_]+&#125;&#125;/', '', $content ) ?? $content;
+
+        // Nettoyer les tokens URL-encodés non résolus.
+        $content = preg_replace( '/%7B%7B[A-Za-z0-9_]+%7D%7D/i', '', $content ) ?? $content;
 
         return $content;
     }

@@ -29,6 +29,10 @@ class QueueScheduler {
         if ( ! function_exists( 'as_schedule_single_action' ) ) {
             // Fallback WP-Cron si Action Scheduler non disponible.
             wp_schedule_single_event( time(), 'techrappy_seo_process_single_job', [ $job_id ] );
+            // Forcer l'exécution immédiate de WP-Cron sans attendre une visite.
+            if ( ! defined( 'DOING_CRON' ) ) {
+                spawn_cron();
+            }
             return;
         }
         as_schedule_single_action( time(), 'techrappy_seo_process_single_job', [ 'job_id' => $job_id ], 'techrappy-seo' );
