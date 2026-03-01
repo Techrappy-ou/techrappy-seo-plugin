@@ -1,6 +1,6 @@
 <?php
 /**
- * Vue : Prompt Studio — éditeur principal v2.
+ * Vue : Prompt Studio — layout cartes v3.
  *
  * @package TechrappySEO
  */
@@ -42,7 +42,7 @@ $vars_map = [
     'qa'             => [ 'mot_cle', 'full_content_html' ],
 ];
 
-// ── Index des prompts pour le JS ───────────────────────────────────────────
+// ── Construire l'index des prompts ─────────────────────────────────────────
 $prompts_index = [];
 foreach ( $prompts as $p ) {
     $key  = $p['prompt_key'];
@@ -62,124 +62,150 @@ include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
 ?>
 <div class="wrap techrappy-seo-wrap" id="techrappy-prompt-studio">
 
+    <?php /* ── Topbar ──────────────────────────────────────────────────────── */ ?>
     <div class="ps-topbar">
-        <button type="button" class="button" id="ps-btn-reset">
-            ↺ <?php esc_html_e( 'Remettre TOUS les prompts par défaut', 'techrappy-seo' ); ?>
-        </button>
-        <span class="spinner techrappy-spinner" id="ps-spinner-reset"></span>
+        <div class="ps-topbar-info">
+            <span class="ps-topbar-count"><?php echo count( $prompts_index ); ?> prompts</span>
+            <span class="ps-topbar-hint"><?php esc_html_e( 'Modifiez et sauvegardez chaque encart indépendamment — Ctrl+S dans un textarea pour sauvegarder', 'techrappy-seo' ); ?></span>
+        </div>
+        <div class="ps-topbar-actions">
+            <button type="button" class="button" id="ps-btn-reset">
+                ↺ <?php esc_html_e( 'Remettre TOUS par défaut', 'techrappy-seo' ); ?>
+            </button>
+            <span class="spinner techrappy-spinner" id="ps-spinner-reset"></span>
+        </div>
     </div>
 
     <div id="ps-notice"></div>
 
-    <div class="ps-layout">
+    <?php if ( empty( $prompts_index ) ) : ?>
+        <div class="notice notice-warning"><p><?php esc_html_e( 'Aucun prompt en base. Désactivez puis réactivez le plugin.', 'techrappy-seo' ); ?></p></div>
+    <?php else : ?>
 
-        <?php /* ── Sidebar ─────────────────────────────────────────────── */ ?>
-        <div class="ps-sidebar">
-            <?php if ( empty( $prompts ) ) : ?>
-                <p style="padding:16px;color:#777;"><?php esc_html_e( 'Aucun prompt en base. Désactivez puis réactivez le plugin.', 'techrappy-seo' ); ?></p>
-            <?php else : ?>
-                <?php foreach ( $prompts_index as $key => $data ) : ?>
-                    <div class="ps-item ps-prompt-item"
-                         data-key="<?php echo esc_attr( $key ); ?>"
-                         data-label="<?php echo esc_attr( $data['label'] ); ?>"
-                         data-desc="<?php echo esc_attr( $data['desc'] ); ?>"
-                         data-content="<?php echo esc_attr( $data['content'] ); ?>"
-                         data-format="<?php echo esc_attr( $data['format'] ); ?>"
-                         data-version="<?php echo esc_attr( (string) $data['version'] ); ?>"
-                         data-vars="<?php echo esc_attr( wp_json_encode( $data['vars'] ) ); ?>">
-                        <div class="ps-item-header">
-                            <?php if ( null !== $data['step'] ) : ?>
-                                <span class="ps-step-badge"><?php echo esc_html( (string) $data['step'] ); ?></span>
-                            <?php else : ?>
-                                <span class="ps-step-badge ps-step-sys">S</span>
-                            <?php endif; ?>
-                            <span class="ps-item-label"><?php echo esc_html( $data['label'] ); ?></span>
-                            <span class="ps-fmt-badge ps-fmt-<?php echo 'json_object' === $data['format'] ? 'json' : 'txt'; ?>">
-                                <?php echo 'json_object' === $data['format'] ? 'JSON' : 'TEXT'; ?>
-                            </span>
-                        </div>
-                        <div class="ps-item-desc"><?php echo esc_html( $data['desc'] ); ?></div>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        </div>
+    <div class="ps-cards-wrap">
 
-        <?php /* ── Panneau éditeur ──────────────────────────────────────── */ ?>
-        <div class="ps-editor-panel" id="ps-editor-panel">
+        <?php foreach ( $prompts_index as $key => $data ) :
+            $is_json    = 'json_object' === $data['format'];
+            $fmt_class  = $is_json ? 'ps-fmt-json' : 'ps-fmt-txt';
+            $fmt_label  = $is_json ? 'JSON' : 'TEXT';
+            $textarea_id = 'ps-textarea-' . esc_attr( $key );
+        ?>
 
-            <div id="ps-editor-empty">
-                <span class="dashicons dashicons-edit" style="font-size:32px;height:32px;width:32px;color:#ccc;"></span>
-                <p><?php esc_html_e( 'Sélectionnez un prompt dans la liste pour l\'éditer.', 'techrappy-seo' ); ?></p>
+        <div class="ps-card" id="ps-card-<?php echo esc_attr( $key ); ?>">
+
+            <?php /* ── En-tête de la carte ──────────────────────────────────── */ ?>
+            <div class="ps-card-head">
+                <div class="ps-card-head-row">
+                    <?php if ( null !== $data['step'] ) : ?>
+                        <span class="ps-step-badge"><?php echo esc_html( (string) $data['step'] ); ?></span>
+                    <?php else : ?>
+                        <span class="ps-step-badge ps-step-sys">S</span>
+                    <?php endif; ?>
+                    <h3 class="ps-card-title"><?php echo esc_html( $data['label'] ); ?></h3>
+                    <span class="ps-fmt-badge <?php echo $fmt_class; ?>"><?php echo $fmt_label; ?></span>
+                    <span class="ps-version-tag ps-card-version">v<?php echo esc_html( (string) $data['version'] ); ?></span>
+                </div>
+                <p class="ps-card-desc"><?php echo esc_html( $data['desc'] ); ?></p>
             </div>
 
-            <div id="ps-editor" style="display:none;">
-
-                <?php /* ── En-tête de l'éditeur ─────────────────────────── */ ?>
-                <div class="ps-editor-head">
-                    <div class="ps-editor-head-left">
-                        <div class="ps-editor-title" id="ps-editor-title"></div>
-                        <div class="ps-editor-desc-text" id="ps-editor-desc"></div>
-                    </div>
-                    <div class="ps-editor-head-right">
-                        <span class="ps-fmt-badge" id="ps-current-format"></span>
-                        <span class="ps-version-tag" id="ps-current-version"></span>
-                    </div>
+            <?php /* ── Barre variables ───────────────────────────────────────── */ ?>
+            <?php if ( ! empty( $data['vars'] ) ) : ?>
+            <div class="ps-vars-bar">
+                <span class="ps-vars-label"><?php esc_html_e( 'Variables :', 'techrappy-seo' ); ?></span>
+                <div class="ps-vars-chips">
+                    <?php foreach ( $data['vars'] as $var ) : ?>
+                        <span class="ps-var-chip"
+                              data-var="<?php echo esc_attr( $var ); ?>"
+                              data-target="<?php echo esc_attr( $textarea_id ); ?>">
+                            {{<?php echo esc_html( $var ); ?>}}
+                        </span>
+                    <?php endforeach; ?>
                 </div>
+                <span class="ps-vars-hint"><?php esc_html_e( 'clic = insérer au curseur', 'techrappy-seo' ); ?></span>
+            </div>
+            <?php endif; ?>
 
-                <?php /* ── Variables cliquables ──────────────────────────── */ ?>
-                <div class="ps-vars-bar" id="ps-vars-bar" style="display:none;">
-                    <span class="ps-vars-label"><?php esc_html_e( 'Variables :', 'techrappy-seo' ); ?></span>
-                    <div class="ps-vars-chips" id="ps-vars-chips"></div>
-                    <span class="ps-vars-hint"><?php esc_html_e( 'clic = insérer au curseur', 'techrappy-seo' ); ?></span>
-                </div>
+            <?php /* ── Textarea du prompt ──────────────────────────────────── */ ?>
+            <textarea
+                id="<?php echo esc_attr( $textarea_id ); ?>"
+                class="ps-textarea"
+                data-key="<?php echo esc_attr( $key ); ?>"
+                spellcheck="false"
+            ><?php echo esc_textarea( $data['content'] ); ?></textarea>
 
-                <?php /* ── Textarea ─────────────────────────────────────── */ ?>
-                <input type="hidden" id="ps-prompt-key" name="ps-prompt-key">
-                <textarea id="ps-prompt-content" class="ps-textarea" spellcheck="false"></textarea>
-
-                <?php /* ── Barre d'outils ───────────────────────────────── */ ?>
-                <div class="ps-toolbar">
-                    <button type="button" class="button button-primary" id="ps-btn-save">
+            <?php /* ── Footer de la carte ──────────────────────────────────── */ ?>
+            <div class="ps-card-footer">
+                <div class="ps-card-footer-left">
+                    <button type="button" class="button button-primary ps-btn-save" data-key="<?php echo esc_attr( $key ); ?>">
                         <?php esc_html_e( 'Sauvegarder', 'techrappy-seo' ); ?>
                     </button>
-                    <span class="spinner techrappy-spinner" id="ps-spinner-save"></span>
+                    <span class="spinner techrappy-spinner ps-spinner-save"></span>
 
-                    <button type="button" class="button" id="ps-btn-reset-one" title="Remet ce prompt à sa valeur par défaut">
-                        <?php esc_html_e( 'Défaut', 'techrappy-seo' ); ?>
+                    <button type="button" class="button ps-btn-reset-one"
+                            data-key="<?php echo esc_attr( $key ); ?>"
+                            title="<?php esc_attr_e( 'Remet ce prompt à sa valeur par défaut', 'techrappy-seo' ); ?>">
+                        ↺ <?php esc_html_e( 'Défaut', 'techrappy-seo' ); ?>
                     </button>
 
                     <div class="ps-toolbar-sep"></div>
 
-                    <button type="button" class="button" id="ps-btn-test">
-                        <?php esc_html_e( 'Tester avec l\'API', 'techrappy-seo' ); ?>
+                    <button type="button" class="button ps-btn-test-toggle" data-key="<?php echo esc_attr( $key ); ?>">
+                        ⚡ <?php esc_html_e( 'Tester', 'techrappy-seo' ); ?>
                     </button>
-                    <span class="spinner techrappy-spinner" id="ps-spinner-test"></span>
-
-                    <span class="ps-char-count" id="ps-char-count"></span>
                 </div>
+                <div class="ps-card-footer-right">
+                    <span class="ps-card-notice" style="display:none;"></span>
+                    <span class="ps-char-count">—</span>
+                </div>
+            </div>
 
-                <?php /* ── Panneau test ─────────────────────────────────── */ ?>
-                <div id="ps-test-panel" style="display:none;">
-                    <div class="ps-test-inner">
-                        <p class="ps-test-hint"><?php esc_html_e( 'Renseignez les variables pour tester ce prompt en direct via OpenAI.', 'techrappy-seo' ); ?></p>
-                        <div class="ps-test-vars-grid" id="ps-test-vars-grid"></div>
-                        <div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
-                            <button type="button" class="button button-primary" id="ps-btn-run-test">
-                                <?php esc_html_e( 'Lancer le test', 'techrappy-seo' ); ?>
-                            </button>
-                            <span class="spinner techrappy-spinner" id="ps-spinner-run-test"></span>
+            <?php /* ── Panneau de test (masqué par défaut) ───────────────────── */ ?>
+            <div class="ps-test-panel" style="display:none;">
+                <div class="ps-test-inner">
+                    <p class="ps-test-hint">
+                        <?php esc_html_e( 'Renseignez les variables pour tester ce prompt en direct via OpenAI.', 'techrappy-seo' ); ?>
+                    </p>
+
+                    <?php if ( ! empty( $data['vars'] ) ) : ?>
+                    <div class="ps-test-vars-grid">
+                        <?php foreach ( $data['vars'] as $var ) : ?>
+                        <div class="ps-test-var-wrap">
+                            <label>{{<?php echo esc_html( $var ); ?>}}</label>
+                            <input type="text"
+                                   class="ps-test-var-input"
+                                   data-var="<?php echo esc_attr( $var ); ?>"
+                                   placeholder="<?php echo esc_attr( $var ); ?>…">
                         </div>
-                        <div id="ps-test-output" style="display:none;margin-top:12px;">
-                            <div class="ps-test-meta" id="ps-test-duration"></div>
-                            <pre id="ps-test-result" class="ps-test-result"></pre>
-                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php else : ?>
+                    <p style="font-size:12px;color:#6b7280;margin:0 0 14px;">
+                        <?php esc_html_e( 'Ce prompt n\'a pas de variables à renseigner.', 'techrappy-seo' ); ?>
+                    </p>
+                    <?php endif; ?>
+
+                    <div style="display:flex;gap:8px;align-items:center;margin-top:14px;">
+                        <button type="button" class="button button-primary ps-btn-run-test"
+                                data-key="<?php echo esc_attr( $key ); ?>">
+                            <?php esc_html_e( 'Lancer le test', 'techrappy-seo' ); ?>
+                        </button>
+                        <span class="spinner techrappy-spinner ps-spinner-run-test"></span>
+                    </div>
+
+                    <div class="ps-test-output" style="display:none;margin-top:14px;">
+                        <div class="ps-test-duration"></div>
+                        <pre class="ps-test-result"></pre>
                     </div>
                 </div>
-
             </div>
-        </div>
 
-    </div><!-- .ps-layout -->
+        </div><!-- .ps-card -->
+
+        <?php endforeach; ?>
+
+    </div><!-- .ps-cards-wrap -->
+
+    <?php endif; ?>
 
 </div><!-- #techrappy-prompt-studio -->
 <?php include TECHRAPPY_SEO_VIEWS . 'partials/footer.php'; ?>
