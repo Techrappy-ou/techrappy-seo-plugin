@@ -158,16 +158,18 @@ Mot-clé : {{mot_cle}}
 Bloc à rédiger : {{bloc_json}}
 
 Contraintes :
-- 180 à 260 mots
-- phrases courtes, une idée par paragraphe
-- intégrer keywords naturellement
-- terminer par une transition
-- ne pas inventer de faits locaux précis
+- 180 à 260 mots au total
+- Si le champ "H3" du bloc contient des sous-titres, utilise-les comme balises <h3> dans le HTML, dans l'ordre indiqué
+- Rédige 2 à 3 phrases courtes sous chaque <h3>
+- Si "H3" est vide, rédige des <p> structurés sans sous-titres
+- Intégrer les keywords naturellement
+- Terminer par une micro-transition (1 phrase, pas de point final)
+- Ne pas inventer de faits locaux précis
 
 FORMAT (JSON strict) :
 {
   "H2":"",
-  "html":"<p>...</p>",
+  "html":"<h3>...</h3><p>...</p><h3>...</h3><p>...</p>",
   "micro_transition":""
 }
 PROMPT,
