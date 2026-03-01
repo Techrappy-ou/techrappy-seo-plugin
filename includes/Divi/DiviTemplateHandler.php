@@ -53,6 +53,18 @@ class DiviTemplateHandler {
 
         $content = $template->post_content;
 
+        // ── Debug : logger le contenu brut du template pour diagnostic ────────
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions
+        error_log( sprintf(
+            '[TechrappySEO] DiviTemplateHandler — template=%d length=%d has_plain={{=%s has_html=&#123;=%s tokens_in_map=%d blocks=%d',
+            $template_post_id,
+            strlen( $content ),
+            str_contains( $content, '{{' ) ? 'yes' : 'NO',
+            str_contains( $content, '&#123;' ) ? 'yes' : 'NO',
+            count( $assembled['tokens'] ),
+            count( $assembled['blocks'] )
+        ) );
+
         // ── 1. Expanser les sections répétables ───────────────────────────────
         $repeatable = new RepeatableSectionHandler();
         $content    = $repeatable->expand( $content, $assembled['blocks'] );
@@ -60,6 +72,17 @@ class DiviTemplateHandler {
         // ── 2. Remplacer les tokens ───────────────────────────────────────────
         $replacer = new TokenReplacer();
         $content  = $replacer->replace( $content, $assembled['tokens'] );
+
+        // ── Debug : vérifier les tokens résiduels après remplacement ─────────
+        $scanner  = new TokenScanner();
+        $residual = $scanner->scan( $content );
+        if ( ! empty( $residual ) ) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions
+            error_log( sprintf(
+                '[TechrappySEO] DiviTemplateHandler — tokens résiduels après remplacement: %s',
+                implode( ', ', $residual )
+            ) );
+        }
 
         return $content;
     }

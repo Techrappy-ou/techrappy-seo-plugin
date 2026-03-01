@@ -157,8 +157,9 @@ final class Plugin {
         $ajax_audit = new \TechrappySEO\Admin\Ajax\AjaxTemplateAudit();
         $this->loader->add_action( 'wp_ajax_techrappy_scan_template',   $ajax_audit, 'handle_scan' );
         $this->loader->add_action( 'wp_ajax_techrappy_save_mapping',    $ajax_audit, 'handle_save_mapping' );
-        $this->loader->add_action( 'wp_ajax_techrappy_export_template', $ajax_audit, 'handle_export_template' );
-        $this->loader->add_action( 'wp_ajax_techrappy_import_template', $ajax_audit, 'handle_import_template' );
+        $this->loader->add_action( 'wp_ajax_techrappy_export_template',      $ajax_audit, 'handle_export_template' );
+        $this->loader->add_action( 'wp_ajax_techrappy_import_template',      $ajax_audit, 'handle_import_template' );
+        $this->loader->add_action( 'wp_ajax_techrappy_debug_template_tokens', $ajax_audit, 'handle_debug_tokens' );
 
         // Prompt Studio.
         $ajax_prompts = new \TechrappySEO\Admin\Ajax\AjaxPromptStudio();

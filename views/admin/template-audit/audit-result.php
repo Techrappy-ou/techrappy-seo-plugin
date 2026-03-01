@@ -83,8 +83,19 @@ include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
             <button type="button" class="button" id="ta-btn-export" style="margin-left:8px;">
                 <?php esc_html_e( 'Exporter le template (JSON)', 'techrappy-seo' ); ?>
             </button>
+            <button type="button" class="button" id="ta-btn-debug-tokens" style="margin-left:8px;border-color:#9b59b6;color:#9b59b6;">
+                🔍 <?php esc_html_e( 'Diagnostiquer l\'encodage des tokens', 'techrappy-seo' ); ?>
+            </button>
             <span class="spinner techrappy-spinner" id="ta-spinner-save"></span>
         </p>
+
+        <?php /* ── Résultat du diagnostic d'encodage ─────────────────────── */ ?>
+        <div id="ta-debug-result" style="display:none;margin-top:20px;padding:16px;background:#1e1e2e;border-radius:8px;color:#cdd6f4;font-family:monospace;font-size:12.5px;line-height:1.7;">
+            <div style="font-weight:700;color:#cba6f7;margin-bottom:10px;font-size:13px;">
+                🔍 <?php esc_html_e( 'Diagnostic encodage des tokens', 'techrappy-seo' ); ?>
+            </div>
+            <div id="ta-debug-content"></div>
+        </div>
 
     </div>
 
@@ -110,6 +121,42 @@ include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
 (function($){
     var nonce = <?php echo wp_json_encode( wp_create_nonce( 'techrappy_seo_audit' ) ); ?>;
     var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
+
+    // Debug encodage tokens.
+    $('#ta-btn-debug-tokens').on('click', function(){
+        var postId = $('#ta-post-select').val();
+        if ( !postId ) { alert( '<?php echo esc_js( __( 'Sélectionnez d\'abord un template.', 'techrappy-seo' ) ); ?>' ); return; }
+        $('#ta-spinner-save').addClass('is-active');
+        $('#ta-debug-result').hide();
+        $.post( ajaxUrl, {
+            action  : 'techrappy_debug_template_tokens',
+            nonce   : nonce,
+            post_id : postId
+        }, function(resp){
+            $('#ta-spinner-save').removeClass('is-active');
+            if ( !resp.success ) { alert( resp.data.message ); return; }
+            var d = resp.data;
+            var html = '';
+            html += '<div style="color:#a6e3a1;margin-bottom:8px;">Post : <strong>' + d.post_title + '</strong> — ' + d.content_length + ' car. — Divi : ' + (d.has_divi ? '✅' : '❌') + '</div>';
+            html += '<div style="margin-bottom:10px;color:#89b4fa;font-weight:700;">Formats de tokens détectés :</div>';
+            $.each( d.formats, function(key, fmt){
+                var statusColor = fmt.count > 0 ? '#a6e3a1' : '#585b70';
+                var handledBadge = fmt.handled ? '<span style="color:#a6e3a1;">[géré ✓]</span>' : '<span style="color:#f38ba8;">[NON géré ✗]</span>';
+                html += '<div style="margin-bottom:4px;color:' + statusColor + ';">';
+                html += '<strong>' + fmt.count + '</strong> token(s) en format ' + fmt.label + ' ' + handledBadge;
+                if ( fmt.tokens.length ) {
+                    html += ' → ' + fmt.tokens.map(function(t){ return '<code style="background:#313244;padding:1px 5px;border-radius:3px;color:#cba6f7;">{{' + t + '}}</code>'; }).join(' ');
+                }
+                html += '</div>';
+            });
+            if ( d.raw_excerpt ) {
+                html += '<div style="margin-top:12px;color:#89b4fa;font-weight:700;">Extrait brut du post_content (autour du premier { trouvé) :</div>';
+                html += '<pre style="background:#11111b;color:#f9e2af;padding:10px;border-radius:6px;overflow:auto;margin-top:6px;font-size:11.5px;white-space:pre-wrap;word-break:break-all;">' + $('<div>').text(d.raw_excerpt).html() + '</pre>';
+            }
+            $('#ta-debug-content').html(html);
+            $('#ta-debug-result').show();
+        });
+    });
 
     // Export.
     $('#ta-btn-export').on('click', function(){

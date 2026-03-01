@@ -132,6 +132,110 @@ class AjaxTemplateAudit {
     }
 
     /**
+     * Diagnostique le format d'encodage des tokens dans un template.
+     *
+     * Retourne pour chaque format connu (plain, HTML-entity, URL-encodé…)
+     * combien de tokens sont trouvés et lesquels — essentiel pour comprendre
+     * pourquoi le TokenReplacer ne les trouve pas.
+     *
+     * @return void
+     */
+    public function handle_debug_tokens(): void {
+        check_ajax_referer( 'techrappy_seo_audit', 'nonce' );
+
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_send_json_error( [ 'message' => 'Accès non autorisé.' ], 403 );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $post_id = absint( $_POST['post_id'] ?? 0 );
+
+        if ( ! $post_id ) {
+            wp_send_json_error( [ 'message' => 'post_id manquant.' ], 400 );
+        }
+
+        $post = get_post( $post_id );
+        if ( ! $post || empty( $post->post_content ) ) {
+            wp_send_json_error( [ 'message' => 'Post introuvable ou contenu vide.' ], 404 );
+        }
+
+        $content = $post->post_content;
+
+        // ── Détecter chaque format d'encodage connu ───────────────────────
+        $formats = [];
+
+        // Format A : {{TOKEN}} brut.
+        preg_match_all( '/\{\{([A-Za-z0-9_]+)\}\}/', $content, $m );
+        $formats['plain'] = [
+            'label'   => '{{TOKEN}} (brut)',
+            'count'   => count( $m[0] ),
+            'tokens'  => array_values( array_unique( $m[1] ) ),
+            'handled' => true,
+        ];
+
+        // Format B : &#123;&#123;TOKEN&#125;&#125; (entités HTML décimales).
+        preg_match_all( '/&#123;&#123;([A-Za-z0-9_]+)&#125;&#125;/', $content, $m );
+        $formats['html_dec'] = [
+            'label'   => '&#123;&#123;TOKEN&#125;&#125; (entités HTML décimales)',
+            'count'   => count( $m[0] ),
+            'tokens'  => array_values( array_unique( $m[1] ) ),
+            'handled' => true,
+        ];
+
+        // Format C : %7B%7BTOKEN%7D%7D (URL-encodé).
+        preg_match_all( '/%7B%7B([A-Za-z0-9_]+)%7D%7D/i', $content, $m );
+        $formats['url_encoded'] = [
+            'label'   => '%7B%7BTOKEN%7D%7D (URL-encodé)',
+            'count'   => count( $m[0] ),
+            'tokens'  => array_values( array_unique( $m[1] ) ),
+            'handled' => true,
+        ];
+
+        // Format D : &#x7B;&#x7B;TOKEN&#x7D;&#x7D; (entités HTML hexadécimales).
+        preg_match_all( '/&#x7[Bb];&#x7[Bb];([A-Za-z0-9_]+)&#x7[Dd];&#x7[Dd];/', $content, $m );
+        $formats['html_hex'] = [
+            'label'   => '&#x7B;&#x7B;TOKEN&#x7D;&#x7D; (entités HTML hex)',
+            'count'   => count( $m[0] ),
+            'tokens'  => array_values( array_unique( $m[1] ) ),
+            'handled' => false,
+        ];
+
+        // Format E : \u007B\u007BTOKEN\u007D\u007D (unicode escape JS).
+        preg_match_all( '/\\\\u007[Bb]\\\\u007[Bb]([A-Za-z0-9_]+)\\\\u007[Dd]\\\\u007[Dd]/', $content, $m );
+        $formats['unicode_escape'] = [
+            'label'   => '\\u007B\\u007BTOKEN\\u007D\\u007D (unicode escape)',
+            'count'   => count( $m[0] ),
+            'tokens'  => array_values( array_unique( $m[1] ) ),
+            'handled' => false,
+        ];
+
+        // ── Extrait brut autour du premier { ─────────────────────────────
+        $raw_excerpt  = '';
+        $first_brace  = strpos( $content, '{' );
+        $first_entity = strpos( $content, '&#' );
+        $first_pct    = strpos( $content, '%7B' );
+        $first_pos    = false;
+        foreach ( [ $first_brace, $first_entity, $first_pct ] as $p ) {
+            if ( false !== $p && ( false === $first_pos || $p < $first_pos ) ) {
+                $first_pos = $p;
+            }
+        }
+
+        if ( false !== $first_pos ) {
+            $start      = max( 0, $first_pos - 30 );
+            $raw_excerpt = substr( $content, $start, 300 );
+        }
+
+        wp_send_json_success( [
+            'post_title'     => get_the_title( $post ),
+            'content_length' => strlen( $content ),
+            'has_divi'       => str_contains( $content, '[et_pb_' ),
+            'formats'        => $formats,
+            'raw_excerpt'    => $raw_excerpt,
+        ] );
+    }
+
+    /**
      * Lance le scan d'un template pour détecter les tokens.
      *
      * @return void
