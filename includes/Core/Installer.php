@@ -138,4 +138,27 @@ class Installer {
         $stored_version = get_option( 'techrappy_seo_db_version', '0.0.0' );
         return version_compare( $stored_version, self::DB_VERSION, '<' );
     }
+
+    /**
+     * Vérifie que toutes les tables custom existent physiquement en base.
+     * Permet de détecter une table manquante même si la version de schéma est à jour.
+     *
+     * @return bool True si toutes les tables sont présentes.
+     */
+    public static function tables_exist(): bool {
+        global $wpdb;
+
+        $tables = [
+            $wpdb->prefix . 'techrappy_seo_jobs',
+            $wpdb->prefix . 'techrappy_prompts',
+        ];
+
+        foreach ( $tables as $table ) {
+            if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }

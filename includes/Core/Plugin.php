@@ -62,12 +62,13 @@ final class Plugin {
 
     /**
      * Lance les migrations de schéma et le seeding des prompts si nécessaire.
-     * Permet de récupérer une installation mise à jour par FTP sans réactivation.
+     * S'exécute aussi quand une table est physiquement absente (auto-réparation),
+     * même si la version de schéma enregistrée est déjà à jour.
      *
      * @return void
      */
     private function maybe_upgrade(): void {
-        if ( ! Installer::needs_upgrade() ) {
+        if ( ! Installer::needs_upgrade() && Installer::tables_exist() ) {
             return;
         }
 
