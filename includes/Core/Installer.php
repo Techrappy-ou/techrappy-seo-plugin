@@ -27,7 +27,7 @@ class Installer {
      * Version du schéma de base de données.
      * Incrémenter à chaque modification de schéma pour déclencher une migration.
      */
-    const DB_VERSION = '1.1.0';
+    const DB_VERSION = '1.2.0';
 
     /**
      * Crée ou met à jour les tables custom du plugin via dbDelta().
