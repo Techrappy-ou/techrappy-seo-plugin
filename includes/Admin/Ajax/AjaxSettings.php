@@ -59,6 +59,24 @@ class AjaxSettings {
     }
 
     /**
+     * Recrée les tables manquantes via dbDelta().
+     * Permet de corriger une installation corrompue sans désactiver/réactiver le plugin.
+     *
+     * @return void
+     */
+    public function handle_repair_db(): void {
+        check_ajax_referer( 'techrappy_seo_diagnostic', 'nonce' );
+
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
+        }
+
+        \TechrappySEO\Core\Installer::create_tables();
+
+        wp_send_json_success( [ 'message' => __( 'Tables créées / mises à jour avec succès.', 'techrappy-seo' ) ] );
+    }
+
+    /**
      * Sauvegarde les réglages du plugin.
      *
      * @return void

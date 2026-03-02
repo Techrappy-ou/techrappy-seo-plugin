@@ -172,6 +172,7 @@ final class Plugin {
         $ajax_settings = new \TechrappySEO\Admin\Ajax\AjaxSettings();
         $this->loader->add_action( 'wp_ajax_techrappy_save_settings',       $ajax_settings, 'handle_save' );
         $this->loader->add_action( 'wp_ajax_techrappy_test_api_connection', $ajax_settings, 'handle_test_connection' );
+        $this->loader->add_action( 'wp_ajax_techrappy_repair_db',           $ajax_settings, 'handle_repair_db' );
 
         // Logs.
         $ajax_logs = new \TechrappySEO\Admin\Ajax\AjaxLogs();

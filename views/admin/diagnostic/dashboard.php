@@ -64,7 +64,8 @@ foreach ( $all_jobs as $job ) {
     }
 }
 
-$nonce_settings = wp_create_nonce( 'techrappy_seo_settings' );
+$nonce_settings    = wp_create_nonce( 'techrappy_seo_settings' );
+$nonce_diagnostic  = wp_create_nonce( 'techrappy_seo_diagnostic' );
 
 include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
 ?>
@@ -201,6 +202,14 @@ include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
                     </span>
                 </div>
             <?php endforeach; ?>
+
+            <div class="diag-row" style="margin-top:10px;flex-wrap:wrap;gap:8px;">
+                <button type="button" class="button" id="diag-btn-repair-db"
+                        data-nonce="<?php echo esc_attr( $nonce_diagnostic ); ?>">
+                    <?php esc_html_e( 'Réparer la BDD', 'techrappy-seo' ); ?>
+                </button>
+                <span id="diag-repair-result"></span>
+            </div>
         </div>
 
         <?php /* ── Carte : Queue ─────────────────────────────────────────── */ ?>
@@ -292,6 +301,31 @@ include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
 
 <script>
 jQuery(function($) {
+    $('#diag-btn-repair-db').on('click', function() {
+        var $btn    = $(this);
+        var $result = $('#diag-repair-result');
+        var nonce   = $btn.data('nonce');
+
+        $btn.prop('disabled', true);
+        $result.text('<?php echo esc_js( __( 'Réparation en cours…', 'techrappy-seo' ) ); ?>').css('color', '#555');
+
+        $.post(<?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>, {
+            action : 'techrappy_repair_db',
+            nonce  : nonce
+        }, function(resp) {
+            $btn.prop('disabled', false);
+            if (resp.success) {
+                $result.text(resp.data.message || '').css('color', '#166534');
+                setTimeout(function(){ location.reload(); }, 1200);
+            } else {
+                $result.text((resp.data && resp.data.message) ? resp.data.message : '<?php echo esc_js( __( 'Erreur inconnue.', 'techrappy-seo' ) ); ?>').css('color', '#991b1b');
+            }
+        }).fail(function() {
+            $btn.prop('disabled', false);
+            $result.text('<?php echo esc_js( __( 'Erreur réseau.', 'techrappy-seo' ) ); ?>').css('color', '#991b1b');
+        });
+    });
+
     $('#diag-btn-test-api').on('click', function() {
         var $btn    = $(this);
         var $result = $('#diag-api-result');
