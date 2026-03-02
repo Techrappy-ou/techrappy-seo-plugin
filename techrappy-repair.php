@@ -1,21 +1,28 @@
 <?php
 /**
  * Plugin Name: Techrappy DB Repair
- * Description: Crée la table manquante techrappy_seo_jobs. Supprimez ce plugin après activation.
- * Version: 1.0.0
+ * Description: Crée la table manquante techrappy_seo_jobs. Supprimez ce plugin après utilisation.
+ * Version: 2.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-register_activation_hook( __FILE__, function () {
+add_action( 'admin_init', function () {
     global $wpdb;
 
-    $charset_collate = $wpdb->get_charset_collate();
-    $table_name      = $wpdb->prefix . 'techrappy_seo_jobs';
+    $table = $wpdb->prefix . 'techrappy_seo_jobs';
 
-    $sql = "CREATE TABLE {$table_name} (
+    // Table déjà présente → rien à faire.
+    if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table ) {
+        return;
+    }
+
+    $charset_collate = $wpdb->get_charset_collate();
+
+    // Pas de DEFAULT sur TEXT/LONGTEXT → compatible MySQL 5.7 et 8.0.
+    $sql = "CREATE TABLE IF NOT EXISTS {$table} (
   id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
   job_id VARCHAR(36) NOT NULL,
   mode ENUM('single','bulk') NOT NULL DEFAULT 'single',
@@ -24,11 +31,11 @@ register_activation_hook( __FILE__, function () {
   keyword TEXT NOT NULL,
   city VARCHAR(255) NOT NULL DEFAULT '',
   publish_status ENUM('draft','publish') NOT NULL DEFAULT 'draft',
-  wp_params LONGTEXT NOT NULL DEFAULT '{}',
+  wp_params LONGTEXT NOT NULL,
   slug_rule ENUM('from_keyword','from_h1') NOT NULL DEFAULT 'from_keyword',
-  steps_data LONGTEXT NOT NULL DEFAULT '{}',
-  result_data TEXT NOT NULL DEFAULT '{}',
-  logs LONGTEXT NOT NULL DEFAULT '[]',
+  steps_data LONGTEXT NOT NULL,
+  result_data TEXT NOT NULL,
+  logs LONGTEXT NOT NULL,
   status ENUM('pending','running','done','done_with_errors','failed','error') NOT NULL DEFAULT 'pending',
   parent_job_id VARCHAR(36) NOT NULL DEFAULT '',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -38,8 +45,7 @@ register_activation_hook( __FILE__, function () {
   KEY status (status),
   KEY parent_job_id (parent_job_id),
   KEY template_post_id (template_post_id)
-) {$charset_collate};";
+) {$charset_collate}";
 
-    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-    dbDelta( $sql );
+    $wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 } );
