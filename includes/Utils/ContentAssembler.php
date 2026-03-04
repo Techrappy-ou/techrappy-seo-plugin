@@ -36,24 +36,33 @@ class ContentAssembler {
         $tokens = $this->build_token_map( $steps_data );
         $blocks = $this->extract_blocks( $steps_data );
 
-        // ── Tokens numérotés par bloc : {{BLOC_1}}, {{BLOC_2}}, … ──────────
-        // Chaque token contient le HTML complet du bloc (H2 + paragraphes + transition).
-        // Utilisable directement dans les templates Divi pour placer chaque section.
+        // ── Tokens numérotés par bloc ────────────────────────────────────────
+        //
+        // Pour chaque bloc N, trois tokens sont disponibles dans les templates Divi :
+        //   {{TITRE_N}}  → texte brut du H2 (pour module Divi "Titre/Heading")
+        //   {{TEXTE_N}}  → HTML des paragraphes uniquement (pour module Divi "Texte")
+        //   {{BLOC_N}}   → H2 + paragraphes + transition en un seul bloc HTML
+        //   {{BLOCS_TOUT}} → tous les blocs concaténés
         $all_blocks_html = '';
         foreach ( $blocks as $index => $block ) {
-            $n          = $index + 1;
-            $block_html = '';
+            $n = $index + 1;
 
-            if ( ! empty( $block['H2'] ) ) {
-                $block_html .= '<h2>' . esc_html( $block['H2'] ) . '</h2>';
-            }
-            $block_html .= $block['html'] ?? '';
+            $titre = $block['H2'] ?? '';
+            $texte = $block['html'] ?? '';
             if ( ! empty( $block['micro_transition'] ) ) {
-                $block_html .= '<p class="techrappy-transition">' . esc_html( $block['micro_transition'] ) . '</p>';
+                $texte .= '<p class="techrappy-transition">' . esc_html( $block['micro_transition'] ) . '</p>';
             }
 
-            $tokens[ 'BLOC_' . $n ] = $block_html;
-            $all_blocks_html       .= $block_html . "\n\n";
+            $bloc_html = '';
+            if ( $titre ) {
+                $bloc_html .= '<h2>' . esc_html( $titre ) . '</h2>';
+            }
+            $bloc_html .= $texte;
+
+            $tokens[ 'TITRE_' . $n ] = $titre;      // texte brut — module Heading Divi
+            $tokens[ 'TEXTE_' . $n ] = $texte;      // HTML paragraphes — module Text Divi
+            $tokens[ 'BLOC_' . $n  ] = $bloc_html;  // bloc complet — HTML brut
+            $all_blocks_html        .= $bloc_html . "\n\n";
         }
 
         // {{BLOCS_TOUT}} = tous les blocs concaténés (utile pour template simple).
