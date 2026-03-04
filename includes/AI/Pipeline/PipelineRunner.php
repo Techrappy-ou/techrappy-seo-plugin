@@ -35,14 +35,23 @@ class PipelineRunner {
     private \TechrappySEO\Utils\Logger $logger;
 
     /**
+     * UUID du job, utilisé pour sauvegarder les étapes en DB au fur et à mesure.
+     *
+     * @var string
+     */
+    private string $job_id;
+
+    /**
      * Constructeur.
      *
-     * @param array<string, mixed>      $job    Données du job.
+     * @param array<string, mixed>       $job    Données du job.
      * @param \TechrappySEO\Utils\Logger $logger Logger du job.
+     * @param string                     $job_id UUID du job (pour sauvegarde incrémentale).
      */
-    public function __construct( array $job, \TechrappySEO\Utils\Logger $logger ) {
+    public function __construct( array $job, \TechrappySEO\Utils\Logger $logger, string $job_id = '' ) {
         $this->job    = $job;
         $this->logger = $logger;
+        $this->job_id = $job_id;
     }
 
     /**
@@ -111,6 +120,7 @@ class PipelineRunner {
 
     /**
      * Exécute une étape et accumule son résultat dans le job.
+     * Sauvegarde le statut en DB avant et après chaque étape (jauge temps réel).
      *
      * @param string        $key  Clé de l'étape (ex: 'intent', 'plan').
      * @param StepInterface $step Instance de l'étape.
@@ -121,24 +131,47 @@ class PipelineRunner {
         $this->logger->info( $key, "Démarrage de l'étape." );
         $this->job['steps'][ $key ] = [ 'status' => 'running', 'data' => [] ];
 
+        // Persister le statut "running" immédiatement pour la jauge frontend.
+        $this->persist_steps();
+
         try {
             $data = $step->run( $this->job, $this->logger );
 
             if ( empty( $data ) ) {
                 $this->job['steps'][ $key ] = [ 'status' => 'error', 'data' => [] ];
                 $this->logger->error( $key, 'Étape échouée : données vides retournées.' );
+                $this->persist_steps();
                 return [];
             }
 
             $this->job['steps'][ $key ] = [ 'status' => 'ok', 'data' => $data ];
             $this->logger->info( $key, 'Étape terminée avec succès.' );
+            $this->persist_steps();
             return $data;
 
         } catch ( \Throwable $e ) {
             $this->job['steps'][ $key ] = [ 'status' => 'error', 'data' => [] ];
             $this->logger->error( $key, 'Exception : ' . $e->getMessage() );
+            $this->persist_steps();
             return [];
         }
+    }
+
+    /**
+     * Sauvegarde les steps et les logs du job en base de données.
+     * Utilisé pour mettre à jour la jauge de progression en temps réel.
+     *
+     * @return void
+     */
+    private function persist_steps(): void {
+        if ( ! $this->job_id ) {
+            return;
+        }
+        \TechrappySEO\Jobs\JobRepository::update_steps(
+            $this->job_id,
+            $this->job['steps'],
+            $this->logger->get_logs()
+        );
     }
 
     /**
@@ -159,6 +192,10 @@ class PipelineRunner {
         $written_blocks = [];
         $total          = count( $blocs );
 
+        // Marquer "blocks" comme en cours avant de démarrer la boucle.
+        $this->job['steps']['blocks'] = [ 'status' => 'running', 'data' => [] ];
+        $this->persist_steps();
+
         foreach ( $blocs as $index => $bloc ) {
             $n = $index + 1;
             $this->logger->info( 'block_write', "Rédaction bloc {$n}/{$total} : " . ( $bloc['H2'] ?? '' ) );
@@ -172,6 +209,10 @@ class PipelineRunner {
             } else {
                 $this->logger->error( 'block_write', "Échec du bloc {$n}." );
             }
+
+            // Sauvegarder la progression de la boucle en DB (jauge temps réel).
+            $this->job['steps']['blocks'] = [ 'status' => 'running', 'data' => $written_blocks ];
+            $this->persist_steps();
         }
 
         // Nettoyer la clé temporaire.

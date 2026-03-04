@@ -35,7 +35,31 @@ class ContentAssembler {
     public function assemble( array $steps_data ): array {
         $tokens = $this->build_token_map( $steps_data );
         $blocks = $this->extract_blocks( $steps_data );
-        $html   = $this->build_raw_html( $tokens, $blocks, $steps_data );
+
+        // ── Tokens numérotés par bloc : {{BLOC_1}}, {{BLOC_2}}, … ──────────
+        // Chaque token contient le HTML complet du bloc (H2 + paragraphes + transition).
+        // Utilisable directement dans les templates Divi pour placer chaque section.
+        $all_blocks_html = '';
+        foreach ( $blocks as $index => $block ) {
+            $n          = $index + 1;
+            $block_html = '';
+
+            if ( ! empty( $block['H2'] ) ) {
+                $block_html .= '<h2>' . esc_html( $block['H2'] ) . '</h2>';
+            }
+            $block_html .= $block['html'] ?? '';
+            if ( ! empty( $block['micro_transition'] ) ) {
+                $block_html .= '<p class="techrappy-transition">' . esc_html( $block['micro_transition'] ) . '</p>';
+            }
+
+            $tokens[ 'BLOC_' . $n ] = $block_html;
+            $all_blocks_html       .= $block_html . "\n\n";
+        }
+
+        // {{BLOCS_TOUT}} = tous les blocs concaténés (utile pour template simple).
+        $tokens['BLOCS_TOUT'] = trim( $all_blocks_html );
+
+        $html = $this->build_raw_html( $tokens, $blocks, $steps_data );
 
         return [
             'tokens'   => $tokens,

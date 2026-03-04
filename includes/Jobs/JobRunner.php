@@ -74,7 +74,7 @@ class JobRunner {
 
         // ── 5. Exécuter le pipeline ───────────────────────────────────────────
         try {
-            $pipeline = new PipelineRunner( $pipeline_job, $logger );
+            $pipeline = new PipelineRunner( $pipeline_job, $logger, $job_id );
             $pipeline_job = $pipeline->run();
 
             // Sauvegarder les steps en base après le pipeline.
