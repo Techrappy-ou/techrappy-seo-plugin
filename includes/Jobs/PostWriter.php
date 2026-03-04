@@ -52,12 +52,18 @@ class PostWriter {
             $post_content = $assembled['raw_html'];
         }
 
+        // L'extrait WordPress = la meta description générée (texte brut).
+        $meta_desc = wp_strip_all_tags( $tokens['meta_desc_1'] ?? '' );
+
         $post_args = [
             'post_title'   => sanitize_text_field( $h1 ),
             'post_content' => $post_content,
+            'post_excerpt' => sanitize_textarea_field( $meta_desc ),
             'post_status'  => sanitize_key( $job['publish_status'] ?? 'draft' ),
             'post_type'    => sanitize_key( $job['type'] ?? 'page' ),
             'post_name'    => $slug,
+            // Note : _thumbnail_id (image de mise en avant) n'est JAMAIS inclus
+            // ici pour ne pas écraser une image déjà définie manuellement.
         ];
 
         // Parent page (optionnel).
@@ -76,6 +82,13 @@ class PostWriter {
         }
 
         // ── 3. Créer ou mettre à jour le post ────────────────────────────────
+        // Les templates Divi contiennent des modules Code avec des balises <script>
+        // (schémas JSON-LD auteur, organisation…). WordPress filtre ces balises via
+        // wp_kses_post() dans wp_insert_post / wp_update_post, ce qui les supprime
+        // et rend le JSON visible en texte brut dans la page.
+        // On désactive temporairement kses pour cet insert de confiance.
+        kses_remove_filters();
+
         $existing_post_id = absint( $job['result_data']['post_id'] ?? 0 );
 
         if ( $existing_post_id > 0 ) {
@@ -84,6 +97,8 @@ class PostWriter {
         } else {
             $post_id = wp_insert_post( $post_args, true );
         }
+
+        kses_init_filters();
 
         if ( is_wp_error( $post_id ) ) {
             return false;
@@ -99,11 +114,14 @@ class PostWriter {
         }
 
         // ── 4. Écrire les meta Yoast SEO ─────────────────────────────────────
+        // La requête cible = mot-clé + ville (si présente) pour une pertinence locale.
+        $keyphrase = trim( ( $job['keyword'] ?? '' ) . ( ! empty( $job['city'] ) ? ' ' . $job['city'] : '' ) );
+
         $yoast = new \TechrappySEO\SEO\YoastIntegration();
         $yoast->write_meta( $post_id, [
             'meta_title'  => $tokens['meta_title_1'] ?? '',
             'meta_desc'   => $tokens['meta_desc_1']  ?? '',
-            'keyphrase'   => $job['keyword']          ?? '',
+            'keyphrase'   => $keyphrase,
         ] );
 
         // ── 4b. Stocker le schéma JSON-LD FAQ en post meta ───────────────────
