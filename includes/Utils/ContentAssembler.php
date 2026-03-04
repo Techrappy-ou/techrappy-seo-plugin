@@ -134,10 +134,13 @@ class ContentAssembler {
      * @return array<int, array{H2: string, html: string, micro_transition: string}>
      */
     private function extract_blocks( array $steps_data ): array {
-        $raw_blocks = $steps_data['blocks']['data'] ?? [];
-        $blocks     = [];
+        $raw_blocks    = $steps_data['blocks']['data'] ?? [];
+        // Titres H2 planifiés (blocks_list) — utilisés comme dernier recours si l'IA
+        // a omis le champ H2 dans block_write.
+        $planned_blocs = $steps_data['blocks_list']['data']['blocs'] ?? [];
+        $blocks        = [];
 
-        foreach ( $raw_blocks as $block ) {
+        foreach ( $raw_blocks as $index => $block ) {
             if ( empty( $block['html'] ) ) {
                 continue;
             }
@@ -145,13 +148,25 @@ class ContentAssembler {
             $h2   = $block['H2']   ?? '';
             $html = $block['html'] ?? '';
 
-            // Fallback : si l'IA a omis le champ H2 mais l'a inclus comme <h2> dans html,
-            // on l'extrait pour peupler correctement {{TITRE_N}}.
+            // Fallback 1 : si l'IA a inclus le H2 comme <h2> EN DÉBUT de html.
             if ( '' === $h2 && '' !== $html ) {
                 if ( preg_match( '/^\s*<h2[^>]*>(.*?)<\/h2>\s*/is', $html, $m ) ) {
                     $h2   = wp_strip_all_tags( $m[1] );
                     $html = preg_replace( '/^\s*<h2[^>]*>.*?<\/h2>\s*/is', '', $html, 1 ) ?? $html;
                 }
+            }
+
+            // Fallback 2 : si l'IA a inclus le H2 comme <h2> N'IMPORTE OÙ dans html.
+            if ( '' === $h2 && '' !== $html ) {
+                if ( preg_match( '/<h2[^>]*>(.*?)<\/h2>/is', $html, $m ) ) {
+                    $h2   = wp_strip_all_tags( $m[1] );
+                    $html = preg_replace( '/<h2[^>]*>.*?<\/h2>/is', '', $html, 1 ) ?? $html;
+                }
+            }
+
+            // Fallback 3 : utiliser le titre planifié depuis blocks_list.
+            if ( '' === $h2 && isset( $planned_blocs[ $index ]['H2'] ) ) {
+                $h2 = (string) $planned_blocs[ $index ]['H2'];
             }
 
             $blocks[] = [
