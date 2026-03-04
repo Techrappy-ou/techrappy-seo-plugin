@@ -91,6 +91,27 @@ class PromptRepository {
     }
 
     /**
+     * Met à jour un prompt uniquement s'il n'a jamais été modifié par l'utilisateur (version = 1).
+     * Permet de propager les corrections de prompts par défaut sans écraser les personnalisations.
+     *
+     * @param string $key     Clé du prompt.
+     * @param string $content Nouveau contenu par défaut.
+     *
+     * @return bool
+     */
+    public function update_if_default( string $key, string $content ): bool {
+        global $wpdb;
+
+        $result = $wpdb->query( $wpdb->prepare(
+            'UPDATE ' . self::table() . ' SET content = %s WHERE prompt_key = %s AND version = 1',
+            $content,
+            $key
+        ) );
+
+        return false !== $result;
+    }
+
+    /**
      * Récupère un prompt par sa clé.
      *
      * @param string $key Clé du prompt.

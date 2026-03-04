@@ -36,8 +36,8 @@ class Activator {
         // 2. Initialiser les options par défaut du plugin.
         \TechrappySEO\Settings\SettingsRepository::init_defaults();
 
-        // 3. Seeder les prompts par défaut en base.
-        \TechrappySEO\Prompts\DefaultPrompts::seed();
+        // 3. Seeder / synchroniser les prompts par défaut en base.
+        \TechrappySEO\Prompts\DefaultPrompts::sync();
 
         // 4. Stocker la version installée pour gestion des migrations futures.
         update_option( 'techrappy_seo_version', TECHRAPPY_SEO_VERSION, false );

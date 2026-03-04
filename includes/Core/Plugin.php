@@ -74,7 +74,7 @@ final class Plugin {
 
         Installer::create_tables();
         \TechrappySEO\Settings\SettingsRepository::init_defaults();
-        \TechrappySEO\Prompts\DefaultPrompts::seed();
+        \TechrappySEO\Prompts\DefaultPrompts::sync();
         update_option( 'techrappy_seo_db_version', Installer::DB_VERSION, false );
     }
 

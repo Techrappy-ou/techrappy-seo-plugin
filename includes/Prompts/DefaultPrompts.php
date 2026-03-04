@@ -37,6 +37,27 @@ class DefaultPrompts {
     }
 
     /**
+     * Synchronise les prompts par défaut en base.
+     * - Insère les prompts absents.
+     * - Met à jour les prompts jamais modifiés par l'utilisateur (version = 1).
+     *
+     * Appelé lors des mises à jour du plugin pour propager les corrections de prompts.
+     *
+     * @return void
+     */
+    public static function sync(): void {
+        $repository = new PromptRepository();
+
+        foreach ( self::get_defaults() as $key => $data ) {
+            if ( ! $repository->exists( $key ) ) {
+                $repository->insert( $key, $data['content'], $data['response_format'] ?? 'json_object' );
+            } else {
+                $repository->update_if_default( $key, $data['content'] );
+            }
+        }
+    }
+
+    /**
      * Retourne le tableau de tous les prompts par défaut.
      *
      * @return array<string, array{content: string, response_format: string}>
@@ -159,6 +180,8 @@ Bloc à rédiger : {{bloc_json}}
 
 Contraintes :
 - 180 à 260 mots au total
+- Recopier EXACTEMENT le champ "H2" du bloc dans le champ "H2" de la réponse (texte brut, sans balises HTML) — ce champ est obligatoire
+- Le champ "html" ne doit JAMAIS contenir le H2 — uniquement le corps du bloc (h3 + paragraphes)
 - Si le champ "H3" du bloc contient des sous-titres, utilise-les comme balises <h3> dans le HTML, dans l'ordre indiqué
 - Rédige 2 à 3 phrases courtes sous chaque <h3>
 - Si "H3" est vide, rédige des <p> structurés sans sous-titres
@@ -168,9 +191,9 @@ Contraintes :
 
 FORMAT (JSON strict) :
 {
-  "H2":"",
+  "H2":"Titre exact du bloc (obligatoire, texte brut sans balises)",
   "html":"<h3>...</h3><p>...</p><h3>...</h3><p>...</p>",
-  "micro_transition":""
+  "micro_transition":"Phrase de transition sans point final"
 }
 PROMPT,
             ],

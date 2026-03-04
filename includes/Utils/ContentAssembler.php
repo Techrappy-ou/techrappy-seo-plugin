@@ -141,9 +141,22 @@ class ContentAssembler {
             if ( empty( $block['html'] ) ) {
                 continue;
             }
+
+            $h2   = $block['H2']   ?? '';
+            $html = $block['html'] ?? '';
+
+            // Fallback : si l'IA a omis le champ H2 mais l'a inclus comme <h2> dans html,
+            // on l'extrait pour peupler correctement {{TITRE_N}}.
+            if ( '' === $h2 && '' !== $html ) {
+                if ( preg_match( '/^\s*<h2[^>]*>(.*?)<\/h2>\s*/is', $html, $m ) ) {
+                    $h2   = wp_strip_all_tags( $m[1] );
+                    $html = preg_replace( '/^\s*<h2[^>]*>.*?<\/h2>\s*/is', '', $html, 1 ) ?? $html;
+                }
+            }
+
             $blocks[] = [
-                'H2'               => $block['H2']               ?? '',
-                'html'             => $block['html']             ?? '',
+                'H2'               => $h2,
+                'html'             => $html,
                 'micro_transition' => $block['micro_transition'] ?? '',
             ];
         }
