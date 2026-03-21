@@ -1,6 +1,12 @@
 <?php
 /**
- * Client HTTP pour l'API OpenAI.
+ * Client IA centralisé — OpenAI Responses API.
+ *
+ * Responsabilité unique : envoyer des requêtes à l'API OpenAI (endpoint
+ * /v1/responses), gérer les erreurs, timeouts, retries et logs.
+ *
+ * Conçu pour être extensible vers d'autres providers (Anthropic, etc.)
+ * via une interface commune AIProviderInterface.
  *
  * @package TechrappySEO\AI
  */
@@ -10,7 +16,6 @@ declare( strict_types=1 );
 namespace TechrappySEO\AI;
 
 use TechrappySEO\Settings\SettingsRepository;
-use TechrappySEO\Utils\CostEstimator;
 use TechrappySEO\Utils\Logger;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -20,49 +25,70 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Class AIClient
  *
- * Responsabilité : effectuer les appels HTTP vers l'API OpenAI
- * et retourner les réponses parsées.
+ * Client HTTP centralisé pour tous les appels IA du plugin.
+ * Tous les appels IA du pipeline DOIVENT passer par cette classe.
  *
- * Fonctionnalités :
- * - Appels chat completions avec system + user prompt
- * - Support JSON mode (response_format: json_object)
- * - Retry automatique sur erreurs transitoires (429, 5xx)
- * - Calcul et tracking du coût par appel
- * - Logging intégré via Logger
+ * Usage :
+ *   $client   = new AIClient( $logger );
+ *   $response = $client->generate( $prompt, $system_prompt, 'json_object' );
+ *   if ( $response->is_success() ) {
+ *       $data = $response->get_parsed();
+ *   }
  */
 class AIClient {
 
-    /**
-     * Endpoint de l'API OpenAI Chat Completions.
-     */
-    const API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+    // ─────────────────────────────────────────
+    // Constantes
+    // ─────────────────────────────────────────
 
     /**
-     * Nombre maximum de tentatives en cas d'échec transitoire.
+     * Endpoint OpenAI Responses API.
      */
-    const MAX_RETRIES = 3;
+    const OPENAI_ENDPOINT = 'https://api.openai.com/v1/responses';
 
     /**
-     * Délai de base entre les tentatives (secondes).
+     * Nombre de tentatives maximum avant d'abandonner.
      */
-    const RETRY_DELAY_BASE = 2;
+    const MAX_RETRIES = 2;
 
     /**
-     * Clé API OpenAI.
+     * Délai de base en secondes entre deux tentatives (exponentiel : 1s, 2s).
+     */
+    const RETRY_DELAY_BASE = 1;
+
+    /**
+     * Provider actif (extensibilité future).
+     */
+    const PROVIDER_OPENAI    = 'openai';
+    const PROVIDER_ANTHROPIC = 'anthropic'; // Prévu V2.
+
+    // ─────────────────────────────────────────
+    // Propriétés
+    // ─────────────────────────────────────────
+
+    /**
+     * Instance du logger liée au job courant.
+     *
+     * @var Logger|null
+     */
+    private ?Logger $logger;
+
+    /**
+     * Provider IA actif.
      *
      * @var string
      */
-    private string $api_key;
+    private string $provider;
 
     /**
-     * Modèle OpenAI à utiliser.
+     * Modèle utilisé (ex : 'gpt-4o').
      *
      * @var string
      */
     private string $model;
 
     /**
-     * Température pour la génération (0.0 à 2.0).
+     * Température de génération (0.0 à 2.0).
      *
      * @var float
      */
@@ -83,343 +109,668 @@ class AIClient {
     private int $timeout;
 
     /**
-     * Logger pour tracer les appels et erreurs.
+     * Mode debug activé.
      *
-     * @var Logger|null
+     * @var bool
      */
-    private ?Logger $logger = null;
+    private bool $debug;
 
     /**
-     * Coût total cumulé des appels de cette instance (en dollars).
+     * Dernière réponse brute reçue (pour debug/logs).
      *
-     * @var float
+     * @var array<string, mixed>|null
      */
-    private float $total_cost = 0.0;
+    private ?array $last_raw_response = null;
+
+    /**
+     * Dernière erreur rencontrée.
+     *
+     * @var string
+     */
+    private string $last_error = '';
+
+    // ─────────────────────────────────────────
+    // Constructeur
+    // ─────────────────────────────────────────
 
     /**
      * Constructeur.
-     * Lit la configuration depuis SettingsRepository.
+     *
+     * @param Logger|null $logger   Logger du job courant (null = pas de log job).
+     * @param string      $provider Provider IA ('openai' par défaut).
      */
-    public function __construct() {
-        $this->api_key     = SettingsRepository::get_api_key();
+    public function __construct( ?Logger $logger = null, string $provider = self::PROVIDER_OPENAI ) {
+        $this->logger   = $logger;
+        $this->provider = $provider;
+
+        // Charger la configuration depuis SettingsRepository.
         $this->model       = (string) SettingsRepository::get( 'openai_model', 'gpt-4o' );
         $this->temperature = (float) SettingsRepository::get( 'openai_temperature', 0.7 );
         $this->max_tokens  = (int) SettingsRepository::get( 'openai_max_tokens', 4096 );
         $this->timeout     = (int) SettingsRepository::get( 'openai_timeout', 60 );
+        $this->debug       = (bool) SettingsRepository::get( 'debug_mode', false );
     }
 
-    /**
-     * Injecte un logger pour tracer les appels.
-     *
-     * @param Logger $logger Instance du logger.
-     *
-     * @return self
-     */
-    public function set_logger( Logger $logger ): self {
-        $this->logger = $logger;
-        return $this;
-    }
+    // ─────────────────────────────────────────
+    // API publique
+    // ─────────────────────────────────────────
 
     /**
-     * Effectue un appel à l'API OpenAI Chat Completions.
+     * Point d'entrée principal — génère une réponse IA.
      *
-     * @param string $prompt         Prompt utilisateur (message "user").
-     * @param string $system_prompt  Prompt système (message "system"). Optionnel.
-     * @param string $response_format Format de réponse : 'json_object' ou 'text'.
+     * @param string               $prompt          Prompt utilisateur (contenu de la requête).
+     * @param string               $system_prompt   Instructions système (règles absolues, ton…).
+     * @param string               $response_format Format attendu : 'json_object' ou 'text'.
+     * @param array<string, mixed> $overrides       Surcharge ponctuelle des paramètres (model, temperature…).
      *
-     * @return array<string, mixed>|null Tableau contenant 'content', 'usage', 'cost', ou null en cas d'erreur fatale.
+     * @return AIResponse Objet réponse standardisé.
      */
-    public function complete(
+    public function generate(
         string $prompt,
         string $system_prompt = '',
-        string $response_format = 'json_object'
-    ): ?array {
-        if ( empty( $this->api_key ) ) {
-            $this->log_error( 'aiclient', 'Clé API OpenAI non configurée.' );
-            return null;
+        string $response_format = 'json_object',
+        array $overrides = []
+    ): AIResponse {
+        // Vérifier la clé API avant tout appel.
+        $api_key = SettingsRepository::get_api_key();
+        if ( empty( $api_key ) ) {
+            return $this->make_error_response(
+                'missing_api_key',
+                __( 'Clé API OpenAI non configurée. Rendez-vous dans Techrappy SEO → Réglages.', 'techrappy-seo' )
+            );
         }
 
-        $messages = $this->build_messages( $prompt, $system_prompt );
-        $body     = $this->build_request_body( $messages, $response_format );
+        // Appliquer les surcharges ponctuelles.
+        $model       = (string) ( $overrides['model'] ?? $this->model );
+        $temperature = (float) ( $overrides['temperature'] ?? $this->temperature );
+        $max_tokens  = (int) ( $overrides['max_tokens'] ?? $this->max_tokens );
 
-        $attempt = 0;
-        while ( $attempt < self::MAX_RETRIES ) {
-            $attempt++;
+        // Construire le payload selon le provider.
+        $payload = $this->build_payload( $prompt, $system_prompt, $response_format, $model, $temperature, $max_tokens );
 
-            if ( $attempt > 1 ) {
-                // Backoff exponentiel : 2s, 4s, 8s…
-                $delay = self::RETRY_DELAY_BASE ** ( $attempt - 1 );
-                $this->log_info( 'aiclient', "Tentative {$attempt} après {$delay}s de délai." );
-                sleep( $delay );
-            }
+        // Logger le démarrage de l'appel.
+        $this->log( 'ai_client', sprintf(
+            'Appel %s — modèle: %s — format: %s — prompt: %d chars',
+            strtoupper( $this->provider ),
+            $model,
+            $response_format,
+            strlen( $prompt )
+        ) );
 
-            $result = $this->do_request( $body );
-
-            if ( null === $result ) {
-                // Erreur HTTP non-récupérable (ex: DNS failure).
-                return null;
-            }
-
-            if ( isset( $result['error'] ) ) {
-                $code    = $result['error']['code'] ?? '';
-                $message = $result['error']['message'] ?? 'Erreur inconnue';
-
-                // Rate limit ou surcharge serveur : on retente.
-                if ( in_array( $code, [ 'rate_limit_exceeded', 'server_error' ], true )
-                    || ( isset( $result['http_status'] ) && $result['http_status'] >= 500 )
-                ) {
-                    $this->log_error( 'aiclient', "Erreur OpenAI récupérable ({$code}) : {$message}. Nouvelle tentative…" );
-                    continue;
-                }
-
-                // Erreur définitive (ex: invalid_api_key, context_length_exceeded).
-                $this->log_error( 'aiclient', "Erreur OpenAI fatale ({$code}) : {$message}" );
-                return null;
-            }
-
-            // Succès : extraire et retourner la réponse.
-            return $this->parse_response( $result, $response_format );
-        }
-
-        $this->log_error( 'aiclient', "Échec après " . self::MAX_RETRIES . " tentatives." );
-        return null;
+        // Exécuter avec retry.
+        return $this->execute_with_retry( $payload, $api_key, $response_format );
     }
 
     /**
-     * Effectue un appel simplifié retournant uniquement le contenu texte.
+     * Surcharge du modèle pour un appel spécifique (fluent API).
      *
-     * @param string $prompt        Prompt utilisateur.
-     * @param string $system_prompt Prompt système.
+     * @param string $model Nom du modèle OpenAI (ex: 'gpt-4o-mini').
      *
-     * @return string|null Contenu texte ou null.
+     * @return static Retourne un clone pour chaînage immutable.
      */
-    public function complete_text( string $prompt, string $system_prompt = '' ): ?string {
-        $result = $this->complete( $prompt, $system_prompt, 'text' );
-        return $result['content'] ?? null;
+    public function with_model( string $model ): static {
+        $clone        = clone $this;
+        $clone->model = $model;
+
+        return $clone;
     }
 
     /**
-     * Effectue un appel retournant du JSON décodé.
+     * Surcharge de la température pour un appel spécifique (fluent API).
      *
-     * @param string $prompt        Prompt utilisateur.
-     * @param string $system_prompt Prompt système.
+     * @param float $temperature Valeur entre 0.0 et 2.0.
      *
-     * @return array<string, mixed>|null JSON décodé ou null.
+     * @return static
      */
-    public function complete_json( string $prompt, string $system_prompt = '' ): ?array {
-        $result = $this->complete( $prompt, $system_prompt, 'json_object' );
-        if ( null === $result || ! isset( $result['content'] ) ) {
-            return null;
-        }
+    public function with_temperature( float $temperature ): static {
+        $clone              = clone $this;
+        $clone->temperature = max( 0.0, min( 2.0, $temperature ) );
 
-        $decoded = json_decode( $result['content'], true );
-        if ( JSON_ERROR_NONE !== json_last_error() ) {
-            $this->log_error( 'aiclient', 'Impossible de décoder la réponse JSON : ' . json_last_error_msg() );
-            return null;
-        }
-
-        return $decoded;
+        return $clone;
     }
 
     /**
-     * Retourne le coût total cumulé de cette instance en dollars.
+     * Retourne la dernière réponse brute reçue de l'API (pour debug).
      *
-     * @return float
+     * @return array<string, mixed>|null
      */
-    public function get_total_cost(): float {
-        return $this->total_cost;
+    public function get_last_raw_response(): ?array {
+        return $this->last_raw_response;
     }
 
     /**
-     * Vérifie que la clé API est configurée et valide syntaxiquement.
+     * Retourne le message de la dernière erreur rencontrée.
+     *
+     * @return string
+     */
+    public function get_last_error(): string {
+        return $this->last_error;
+    }
+
+    /**
+     * Vérifie que la clé API est configurée.
      *
      * @return bool
      */
     public function has_valid_api_key(): bool {
-        return ! empty( $this->api_key ) && str_starts_with( $this->api_key, 'sk-' );
+        $api_key = SettingsRepository::get_api_key();
+
+        return ! empty( $api_key ) && str_starts_with( $api_key, 'sk-' );
     }
 
-    // -------------------------------------------------------------------------
-    // Méthodes privées
-    // -------------------------------------------------------------------------
+    // ─────────────────────────────────────────
+    // Construction du payload
+    // ─────────────────────────────────────────
 
     /**
-     * Construit le tableau de messages pour l'API.
+     * Construit le payload JSON pour l'API OpenAI Responses API.
      *
-     * @param string $prompt        Prompt utilisateur.
-     * @param string $system_prompt Prompt système.
+     * Structure cible :
+     * {
+     *   "model": "gpt-4o",
+     *   "input": [
+     *     { "role": "system", "content": "..." },
+     *     { "role": "user",   "content": "..." }
+     *   ],
+     *   "text": { "format": { "type": "json_object" } },
+     *   "max_output_tokens": 4096,
+     *   "temperature": 0.7
+     * }
      *
-     * @return array<int, array{role: string, content: string}>
+     * @param string $prompt          Prompt utilisateur.
+     * @param string $system_prompt   Prompt système.
+     * @param string $response_format 'json_object' ou 'text'.
+     * @param string $model           Modèle à utiliser.
+     * @param float  $temperature     Température.
+     * @param int    $max_tokens      Tokens max en sortie.
+     *
+     * @return array<string, mixed>
      */
-    private function build_messages( string $prompt, string $system_prompt ): array {
-        $messages = [];
+    private function build_payload(
+        string $prompt,
+        string $system_prompt,
+        string $response_format,
+        string $model,
+        float $temperature,
+        int $max_tokens
+    ): array {
+        // Construction des messages d'entrée.
+        $input = [];
 
         if ( ! empty( $system_prompt ) ) {
-            $messages[] = [
+            $input[] = [
                 'role'    => 'system',
                 'content' => $system_prompt,
             ];
         }
 
-        $messages[] = [
+        $input[] = [
             'role'    => 'user',
             'content' => $prompt,
         ];
 
-        return $messages;
-    }
-
-    /**
-     * Construit le corps de la requête API.
-     *
-     * @param array<int, array{role: string, content: string}> $messages      Messages.
-     * @param string                                           $response_format Format de réponse.
-     *
-     * @return array<string, mixed>
-     */
-    private function build_request_body( array $messages, string $response_format ): array {
-        $body = [
-            'model'       => $this->model,
-            'messages'    => $messages,
-            'temperature' => $this->temperature,
-            'max_tokens'  => $this->max_tokens,
-        ];
-
-        // JSON mode : disponible uniquement sur les modèles compatibles.
-        if ( 'json_object' === $response_format ) {
-            $body['response_format'] = [ 'type' => 'json_object' ];
-        }
-
-        return $body;
-    }
-
-    /**
-     * Exécute la requête HTTP via wp_remote_post().
-     *
-     * @param array<string, mixed> $body Corps de la requête.
-     *
-     * @return array<string, mixed>|null Réponse brute décodée, ou null si erreur WP_Error.
-     */
-    private function do_request( array $body ): ?array {
-        $args = [
-            'method'  => 'POST',
-            'timeout' => $this->timeout,
-            'headers' => [
-                'Authorization' => 'Bearer ' . $this->api_key,
-                'Content-Type'  => 'application/json',
-            ],
-            'body'    => wp_json_encode( $body ),
-        ];
-
-        $this->log_info( 'aiclient', sprintf(
-            'Appel API OpenAI → model=%s, max_tokens=%d',
-            $this->model,
-            $this->max_tokens
-        ) );
-
-        $response = wp_remote_post( self::API_ENDPOINT, $args );
-
-        if ( is_wp_error( $response ) ) {
-            $this->log_error( 'aiclient', 'Erreur WP HTTP : ' . $response->get_error_message() );
-            return null;
-        }
-
-        $http_status = (int) wp_remote_retrieve_response_code( $response );
-        $raw_body    = wp_remote_retrieve_body( $response );
-        $decoded     = json_decode( $raw_body, true );
-
-        if ( ! is_array( $decoded ) ) {
-            $this->log_error( 'aiclient', "Réponse non-JSON (HTTP {$http_status}) : " . substr( $raw_body, 0, 200 ) );
-            return null;
-        }
-
-        // Injecter le statut HTTP dans la réponse pour faciliter la gestion d'erreurs.
-        $decoded['http_status'] = $http_status;
-
-        return $decoded;
-    }
-
-    /**
-     * Parse la réponse API et extrait le contenu + usage.
-     *
-     * @param array<string, mixed> $response       Réponse brute décodée.
-     * @param string               $response_format Format attendu.
-     *
-     * @return array<string, mixed> Tableau normalisé avec 'content', 'usage', 'cost'.
-     */
-    private function parse_response( array $response, string $response_format ): array {
-        $content = $response['choices'][0]['message']['content'] ?? '';
-        $usage   = $response['usage'] ?? [
-            'prompt_tokens'     => 0,
-            'completion_tokens' => 0,
-            'total_tokens'      => 0,
-        ];
-
-        $input_tokens  = (int) ( $usage['prompt_tokens'] ?? 0 );
-        $output_tokens = (int) ( $usage['completion_tokens'] ?? 0 );
-        $cost          = CostEstimator::estimate( $this->model, $input_tokens, $output_tokens );
-
-        // Accumuler le coût total de l'instance.
-        $this->total_cost += $cost;
-
-        $this->log_info( 'aiclient', sprintf(
-            'Réponse OK → tokens: %d in + %d out = %d total | coût: $%.6f',
-            $input_tokens,
-            $output_tokens,
-            (int) ( $usage['total_tokens'] ?? 0 ),
-            $cost
-        ) );
-
-        // Alerte seuil de coût.
-        if ( CostEstimator::exceeds_threshold( $this->total_cost ) ) {
-            $this->log_warning( 'aiclient', sprintf(
-                'Seuil de coût dépassé : $%.4f (seuil configuré atteint).',
-                $this->total_cost
-            ) );
-        }
+        // Format de sortie (Responses API).
+        $text_format = ( 'json_object' === $response_format )
+            ? [ 'format' => [ 'type' => 'json_object' ] ]
+            : [ 'format' => [ 'type' => 'text' ] ];
 
         return [
-            'content'       => $content,
-            'usage'         => $usage,
-            'cost'          => $cost,
-            'finish_reason' => $response['choices'][0]['finish_reason'] ?? 'unknown',
-            'model'         => $response['model'] ?? $this->model,
+            'model'             => $model,
+            'input'             => $input,
+            'text'              => $text_format,
+            'max_output_tokens' => $max_tokens,
+            'temperature'       => $temperature,
         ];
     }
 
+    // ─────────────────────────────────────────
+    // Exécution HTTP avec retry
+    // ─────────────────────────────────────────
+
     /**
-     * Log info (no-op si pas de logger).
+     * Exécute la requête HTTP avec mécanisme de retry exponentiel.
      *
-     * @param string $step    Étape.
-     * @param string $message Message.
+     * @param array<string, mixed> $payload         Payload JSON de la requête.
+     * @param string               $api_key         Clé API en clair.
+     * @param string               $response_format Format attendu.
      *
-     * @return void
+     * @return AIResponse
      */
-    private function log_info( string $step, string $message ): void {
-        $this->logger?->info( $step, $message );
+    private function execute_with_retry( array $payload, string $api_key, string $response_format ): AIResponse {
+        $attempt    = 0;
+        $last_error = '';
+
+        while ( $attempt <= self::MAX_RETRIES ) {
+            // Délai exponentiel entre les tentatives (pas sur le premier essai).
+            if ( $attempt > 0 ) {
+                $delay = self::RETRY_DELAY_BASE * $attempt;
+                $this->log( 'ai_client', sprintf(
+                    'Tentative %d/%d — attente %ds avant retry.',
+                    $attempt,
+                    self::MAX_RETRIES,
+                    $delay
+                ), Logger::LEVEL_WARNING );
+                sleep( $delay ); // phpcs:ignore WordPress.WP.AlternativeFunctions.rand_rand
+            }
+
+            $start_time    = microtime( true );
+            $http_response = $this->do_http_request( $payload, $api_key );
+            $duration_ms   = (int) round( ( microtime( true ) - $start_time ) * 1000 );
+
+            // Erreur WordPress HTTP (réseau, timeout…).
+            if ( is_wp_error( $http_response ) ) {
+                $last_error = $http_response->get_error_message();
+                $this->log( 'ai_client', sprintf(
+                    'Erreur HTTP (tentative %d) : %s',
+                    $attempt + 1,
+                    $last_error
+                ), Logger::LEVEL_ERROR );
+                $attempt++;
+                continue;
+            }
+
+            // Analyser la réponse HTTP.
+            $result = $this->parse_http_response( $http_response, $response_format, $duration_ms );
+
+            // Succès : retourner immédiatement.
+            if ( $result->is_success() ) {
+                $this->log( 'ai_client', sprintf(
+                    'Réponse reçue en %dms — input: %d tokens — output: %d tokens.',
+                    $duration_ms,
+                    $result->get_input_tokens(),
+                    $result->get_output_tokens()
+                ) );
+
+                return $result;
+            }
+
+            // Erreur API non-retriable (authentification, quota dépassé…).
+            if ( $this->is_non_retriable_error( $result->get_error_code() ) ) {
+                $this->log( 'ai_client', sprintf(
+                    'Erreur non-retriable (%s) : %s',
+                    $result->get_error_code(),
+                    $result->get_error_message()
+                ), Logger::LEVEL_ERROR );
+
+                return $result;
+            }
+
+            // Erreur retriable.
+            $last_error = $result->get_error_message();
+            $this->log( 'ai_client', sprintf(
+                'Erreur API retriable (tentative %d) : %s',
+                $attempt + 1,
+                $last_error
+            ), Logger::LEVEL_WARNING );
+
+            $attempt++;
+        }
+
+        // Toutes les tentatives ont échoué.
+        $this->last_error = $last_error;
+
+        return $this->make_error_response(
+            'max_retries_exceeded',
+            sprintf(
+                /* translators: 1: nombre de tentatives, 2: dernière erreur */
+                __( 'Échec après %d tentatives. Dernière erreur : %s', 'techrappy-seo' ),
+                self::MAX_RETRIES + 1,
+                $last_error
+            )
+        );
+    }
+
+    // ─────────────────────────────────────────
+    // Requête HTTP WordPress
+    // ─────────────────────────────────────────
+
+    /**
+     * Effectue la requête HTTP via wp_remote_post().
+     *
+     * @param array<string, mixed> $payload Payload JSON.
+     * @param string               $api_key Clé API OpenAI.
+     *
+     * @return array<string, mixed>|\WP_Error Réponse WordPress ou WP_Error.
+     */
+    private function do_http_request( array $payload, string $api_key ): array|\WP_Error {
+        $endpoint = $this->get_endpoint();
+
+        $args = [
+            'method'    => 'POST',
+            'timeout'   => $this->timeout,
+            'headers'   => [
+                'Content-Type'  => 'application/json',
+                'Authorization' => 'Bearer ' . $api_key,
+            ],
+            'body'      => wp_json_encode( $payload ),
+            // Désactiver le SSL verify en dev si debug activé.
+            'sslverify' => ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && $this->debug ),
+        ];
+
+        // Permettre la modification des args via filtre (extensibilité).
+        $args = apply_filters( 'techrappy_seo_ai_request_args', $args, $payload, $this->provider );
+
+        if ( $this->debug ) {
+            $this->log( 'ai_client', 'Payload envoyé : ' . wp_json_encode( $payload ), Logger::LEVEL_DEBUG );
+        }
+
+        return wp_remote_post( $endpoint, $args );
     }
 
     /**
-     * Log warning.
+     * Retourne l'endpoint API selon le provider actif.
      *
-     * @param string $step    Étape.
-     * @param string $message Message.
-     *
-     * @return void
+     * @return string URL de l'endpoint.
      */
-    private function log_warning( string $step, string $message ): void {
-        $this->logger?->warning( $step, $message );
+    private function get_endpoint(): string {
+        return match ( $this->provider ) {
+            self::PROVIDER_OPENAI => self::OPENAI_ENDPOINT,
+            // Prévu V2 :
+            // self::PROVIDER_ANTHROPIC => 'https://api.anthropic.com/v1/messages',
+            default => self::OPENAI_ENDPOINT,
+        };
+    }
+
+    // ─────────────────────────────────────────
+    // Parsing de la réponse HTTP
+    // ─────────────────────────────────────────
+
+    /**
+     * Parse et valide la réponse HTTP de l'API OpenAI.
+     *
+     * @param array<string, mixed> $http_response   Réponse wp_remote_post.
+     * @param string               $response_format Format attendu.
+     * @param int                  $duration_ms     Durée de l'appel en ms.
+     *
+     * @return AIResponse
+     */
+    private function parse_http_response( array $http_response, string $response_format, int $duration_ms ): AIResponse {
+        $http_code = (int) wp_remote_retrieve_response_code( $http_response );
+        $body      = wp_remote_retrieve_body( $http_response );
+
+        // Logger la réponse brute en mode debug.
+        if ( $this->debug ) {
+            $this->log( 'ai_client', sprintf(
+                'HTTP %d — Body (500 chars) : %s',
+                $http_code,
+                substr( $body, 0, 500 )
+            ), Logger::LEVEL_DEBUG );
+        }
+
+        // Décoder le JSON de la réponse.
+        $data = json_decode( $body, true );
+
+        if ( JSON_ERROR_NONE !== json_last_error() || ! is_array( $data ) ) {
+            return $this->make_error_response(
+                'invalid_json_response',
+                __( "La réponse de l'API n'est pas un JSON valide.", 'techrappy-seo' ),
+                $http_code
+            );
+        }
+
+        // Stocker la réponse brute pour debug.
+        $this->last_raw_response = $data;
+
+        // Erreur API côté serveur.
+        if ( $http_code >= 400 ) {
+            return $this->parse_api_error( $data, $http_code );
+        }
+
+        // Extraire le contenu selon la structure Responses API.
+        return $this->extract_content( $data, $response_format, $duration_ms );
     }
 
     /**
-     * Log error.
+     * Parse une erreur retournée par l'API OpenAI.
      *
-     * @param string $step    Étape.
+     * Structure d'erreur OpenAI :
+     * { "error": { "message": "...", "type": "...", "code": "..." } }
+     *
+     * @param array<string, mixed> $data      Corps de la réponse décodé.
+     * @param int                  $http_code Code HTTP reçu.
+     *
+     * @return AIResponse
+     */
+    private function parse_api_error( array $data, int $http_code ): AIResponse {
+        $error_message = $data['error']['message'] ?? __( 'Erreur API inconnue.', 'techrappy-seo' );
+        $error_code    = $data['error']['code'] ?? (string) $http_code;
+        $error_type    = $data['error']['type'] ?? 'api_error';
+
+        $this->last_error = $error_message;
+
+        $this->log( 'ai_client', sprintf(
+            'Erreur API OpenAI [%s/%s] HTTP %d : %s',
+            $error_type,
+            $error_code,
+            $http_code,
+            $error_message
+        ), Logger::LEVEL_ERROR );
+
+        return $this->make_error_response( $error_code, $error_message, $http_code );
+    }
+
+    /**
+     * Extrait le contenu textuel depuis la réponse Responses API.
+     *
+     * Structure de réponse OpenAI Responses API :
+     * {
+     *   "output": [
+     *     {
+     *       "type": "message",
+     *       "content": [
+     *         { "type": "output_text", "text": "..." }
+     *       ]
+     *     }
+     *   ],
+     *   "usage": {
+     *     "input_tokens": 150,
+     *     "output_tokens": 300
+     *   }
+     * }
+     *
+     * @param array<string, mixed> $data            Réponse décodée.
+     * @param string               $response_format Format attendu.
+     * @param int                  $duration_ms     Durée appel.
+     *
+     * @return AIResponse
+     */
+    private function extract_content( array $data, string $response_format, int $duration_ms ): AIResponse {
+        // Extraire le texte depuis output[0].content[0].text.
+        $raw_text = $this->extract_text_from_output( $data );
+
+        if ( null === $raw_text ) {
+            return $this->make_error_response(
+                'empty_output',
+                __( "La réponse de l'API ne contient aucun texte exploitable.", 'techrappy-seo' )
+            );
+        }
+
+        // Extraction des tokens de facturation.
+        $input_tokens  = (int) ( $data['usage']['input_tokens'] ?? 0 );
+        $output_tokens = (int) ( $data['usage']['output_tokens'] ?? 0 );
+
+        // Si JSON attendu : valider + décoder.
+        if ( 'json_object' === $response_format ) {
+            return $this->parse_json_content( $raw_text, $input_tokens, $output_tokens, $duration_ms );
+        }
+
+        // Format texte : retourner tel quel.
+        return AIResponse::success(
+            content:       $raw_text,
+            parsed:        null,
+            input_tokens:  $input_tokens,
+            output_tokens: $output_tokens,
+            duration_ms:   $duration_ms,
+            raw:           $this->last_raw_response ?? []
+        );
+    }
+
+    /**
+     * Extrait la chaîne de texte depuis la structure output de Responses API.
+     *
+     * @param array<string, mixed> $data Réponse API décodée.
+     *
+     * @return string|null Texte extrait ou null si structure inattendue.
+     */
+    private function extract_text_from_output( array $data ): ?string {
+        // Responses API : output est un tableau de blocs.
+        if ( ! isset( $data['output'] ) || ! is_array( $data['output'] ) ) {
+            return null;
+        }
+
+        foreach ( $data['output'] as $output_block ) {
+            if ( ! is_array( $output_block ) ) {
+                continue;
+            }
+
+            // Type "message" contient les réponses textuelles.
+            if ( ( $output_block['type'] ?? '' ) !== 'message' ) {
+                continue;
+            }
+
+            if ( ! isset( $output_block['content'] ) || ! is_array( $output_block['content'] ) ) {
+                continue;
+            }
+
+            foreach ( $output_block['content'] as $content_block ) {
+                if ( ! is_array( $content_block ) ) {
+                    continue;
+                }
+
+                // Type "output_text" contient le texte généré.
+                if ( ( $content_block['type'] ?? '' ) === 'output_text' && isset( $content_block['text'] ) ) {
+                    return (string) $content_block['text'];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Parse et valide le contenu JSON d'une réponse.
+     *
+     * @param string $raw_text      Texte brut retourné par l'API.
+     * @param int    $input_tokens  Tokens d'entrée.
+     * @param int    $output_tokens Tokens de sortie.
+     * @param int    $duration_ms   Durée.
+     *
+     * @return AIResponse
+     */
+    private function parse_json_content( string $raw_text, int $input_tokens, int $output_tokens, int $duration_ms ): AIResponse {
+        // Nettoyer les éventuels blocs markdown ```json ... ```.
+        $clean_text = $this->strip_markdown_code_blocks( $raw_text );
+        $parsed     = json_decode( $clean_text, true );
+
+        if ( JSON_ERROR_NONE !== json_last_error() || ! is_array( $parsed ) ) {
+            $this->log( 'ai_client', sprintf(
+                'JSON invalide reçu : %s',
+                substr( $raw_text, 0, 300 )
+            ), Logger::LEVEL_ERROR );
+
+            return $this->make_error_response(
+                'invalid_json_content',
+                sprintf(
+                    /* translators: %s: message d'erreur JSON */
+                    __( "Le contenu retourné par l'IA n'est pas un JSON valide : %s", 'techrappy-seo' ),
+                    json_last_error_msg()
+                )
+            );
+        }
+
+        return AIResponse::success(
+            content:       $clean_text,
+            parsed:        $parsed,
+            input_tokens:  $input_tokens,
+            output_tokens: $output_tokens,
+            duration_ms:   $duration_ms,
+            raw:           $this->last_raw_response ?? []
+        );
+    }
+
+    // ─────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────
+
+    /**
+     * Supprime les blocs markdown ```json ... ``` du texte.
+     * Les modèles LLM ajoutent parfois des balises markdown même en mode JSON.
+     *
+     * @param string $text Texte brut.
+     *
+     * @return string Texte nettoyé.
+     */
+    private function strip_markdown_code_blocks( string $text ): string {
+        $text = trim( $text );
+
+        // Supprimer ```json ... ``` ou ``` ... ```.
+        if ( preg_match( '/^\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`$/m', $text, $matches ) ) {
+            return trim( $matches[1] );
+        }
+
+        return $text;
+    }
+
+    /**
+     * Détermine si une erreur API est non-retriable.
+     * Évite les retries inutiles sur des erreurs permanentes.
+     *
+     * @param string $error_code Code d'erreur OpenAI.
+     *
+     * @return bool True si l'erreur ne doit pas être retentée.
+     */
+    private function is_non_retriable_error( string $error_code ): bool {
+        $non_retriable = [
+            'invalid_api_key',
+            'insufficient_quota',
+            'invalid_request_error',
+            'model_not_found',
+            '401',
+            '403',
+            '404',
+        ];
+
+        return in_array( $error_code, $non_retriable, true );
+    }
+
+    /**
+     * Crée un AIResponse d'erreur standardisé.
+     *
+     * @param string $code      Code d'erreur.
+     * @param string $message   Message d'erreur lisible.
+     * @param int    $http_code Code HTTP (optionnel).
+     *
+     * @return AIResponse
+     */
+    private function make_error_response( string $code, string $message, int $http_code = 0 ): AIResponse {
+        $this->last_error = $message;
+
+        return AIResponse::error(
+            error_code:    $code,
+            error_message: $message,
+            http_code:     $http_code
+        );
+    }
+
+    /**
+     * Écrit un message de log via le Logger du job ou error_log en fallback.
+     *
+     * @param string $step    Étape concernée.
      * @param string $message Message.
+     * @param string $level   Niveau de log.
      *
      * @return void
      */
-    private function log_error( string $step, string $message ): void {
-        $this->logger?->error( $step, $message );
+    private function log( string $step, string $message, string $level = Logger::LEVEL_INFO ): void {
+        if ( $this->logger instanceof Logger ) {
+            $this->logger->log( $step, $message, $level );
+            return;
+        }
+
+        // Fallback si pas de logger de job (appel standalone / test).
+        if ( $this->debug ) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+            error_log( "[TechrappySEO][{$level}][{$step}] {$message}" );
+        }
     }
 }
