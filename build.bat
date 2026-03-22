@@ -44,13 +44,11 @@ REM pour éviter que Compress-Archive inclue des dossiers parents dans l'archive
 
 REM --- ZIP 1 : pour upload via WordPress Admin ---
 REM Structure : techrappy-seo/ à la racine (standard WordPress)
-powershell -NoProfile -Command ^
-  "Set-Location '%BUILD_DIR%'; Compress-Archive -Path '.\%FOLDER%' -DestinationPath '%SAVED_CD%\%ZIP_WP%' -Force"
+powershell -NoProfile -Command "Set-Location '%BUILD_DIR%'; Compress-Archive -Path '.\%FOLDER%' -DestinationPath '%SAVED_CD%\%ZIP_WP%' -Force"
 
 REM --- ZIP 2 : pour installation manuelle via cPanel ---
 REM Structure : fichiers directement à la racine (sans dossier wrapper)
-powershell -NoProfile -Command ^
-  "Set-Location '%BUILD_DIR%'; Compress-Archive -Path '.\%FOLDER%\*' -DestinationPath '%SAVED_CD%\%ZIP_CPANEL%' -Force"
+powershell -NoProfile -Command "Set-Location '%BUILD_DIR%'; Compress-Archive -Path '.\%FOLDER%\*' -DestinationPath '%SAVED_CD%\%ZIP_CPANEL%' -Force"
 
 if %ERRORLEVEL% EQU 0 (
     echo.
