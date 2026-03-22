@@ -79,19 +79,37 @@
     // ──────────────────────────────────────────────────────────────────────────
 
     function validateStep1() {
-        var keyword = $('#wz_keyword').val().trim();
-        if (!keyword) {
-            showNotice('Le mot-clé principal est requis.');
-            return false;
+        var mode    = getMode();
+        var submode = getBulkSubmode();
+
+        // En mode bulk + keywords, le champ "mot-clé" n'est pas requis.
+        if (!(mode === 'bulk' && submode === 'keywords')) {
+            var keyword = $('#wz_keyword').val().trim();
+            if (!keyword) {
+                showNotice('Le mot-clé principal est requis.');
+                return false;
+            }
         }
+
         var profession = $('#wz_profession').val().trim();
         if (!profession) {
             showNotice('La profession / secteur est requise.');
             return false;
         }
-        if (getMode() === 'bulk' && !$('#wz_ville_principale').val().trim()) {
-            showNotice('Le code postal de référence est requis pour la génération en masse.');
-            return false;
+
+        if (mode === 'bulk') {
+            if (submode === 'keywords') {
+                var kws = $('#wz_keywords_list').val().split('\n').filter(function (l) { return l.trim().length > 0; });
+                if (!kws.length) {
+                    showNotice('Saisissez au moins un mot-clé dans la liste.');
+                    return false;
+                }
+            } else {
+                if (!$('#wz_ville_principale').val().trim()) {
+                    showNotice('Le code postal de référence est requis pour la génération en masse par villes.');
+                    return false;
+                }
+            }
         }
         return true;
     }
@@ -243,10 +261,18 @@
         $log.scrollTop($log[0].scrollHeight);
     }
 
+    function getBulkSubmode() {
+        return $('input[name="wz_bulk_submode"]:checked').val() || 'cities';
+    }
+
     function launchGeneration() {
         clearNotice();
         if (getMode() === 'bulk') {
-            launchBulk();
+            if (getBulkSubmode() === 'keywords') {
+                launchBulkKeywords();
+            } else {
+                launchBulk();
+            }
         } else {
             launchSingle();
         }
@@ -362,6 +388,70 @@
             },
             function (err) {
                 appendLog('[ERROR] ' + (err.message || 'Erreur lancement bulk.'), 'error');
+                $('#wz_progress, #wz_done').hide();
+                $('#wz_failed').show();
+            }
+        );
+    }
+
+    function launchBulkKeywords() {
+        stopPolling();
+
+        // Collecter et nettoyer les mots-clés (un par ligne).
+        var rawKeywords = $('#wz_keywords_list').val() || '';
+        var keywords = rawKeywords.split('\n')
+            .map(function (k) { return k.trim(); })
+            .filter(function (k) { return k.length > 0; });
+
+        // Dédupliquer.
+        keywords = keywords.filter(function (k, i, arr) { return arr.indexOf(k) === i; });
+
+        if (!keywords.length) {
+            showNotice('Saisissez au moins un mot-clé dans la liste.');
+            showStep(1);
+            return;
+        }
+
+        var intentModeBk = $('input[name="wz_intent_mode"]:checked').val() || 'auto';
+        var data = {
+            nonce:            TechrappySEO.nonces.bulk,
+            profession:       $('#wz_profession').val().trim(),
+            type:             $('#wz_type').val(),
+            template_post_id: $('#wz_template_post_id').val(),
+            publish_status:   $('#wz_publish_status').val(),
+            slug_rule:        $('#wz_slug_rule').val(),
+            parent_id:        $('#wz_parent_id').val() || 0,
+            category_id:      $('#wz_category_id').val() || 0,
+            menu_action:      $('#bj-menu-action').val()      || 'none',
+            menu_id:          $('#bj-menu-id').val()          || 0,
+            menu_name:        $('#bj-menu-name').val()        || '',
+            menu_location:    $('#bj-menu-location').val()    || '',
+            label_format:     $('#bj-label-format').val()     || 'post_title',
+            label_template:   $('#bj-label-template').val()   || '',
+            intent_mode:      intentModeBk,
+            user_intent:      intentModeBk === 'manual' ? $('#wz_user_intent').val().trim() : '',
+        };
+        // Envoyer les mots-clés.
+        $.each(keywords, function (i, kw) {
+            data['keywords[' + i + ']'] = kw;
+        });
+
+        showStep(TOTAL_STEPS);
+        $('#wz_progress').show();
+        $('#wz_done, #wz_failed').hide();
+        $('#wz_log_output').empty();
+        appendLog('[INFO] Lancement bulk mots-clés (' + keywords.length + ' mots-clés)…');
+
+        TechrappySEOAjax(
+            'techrappy_launch_bulk_keywords',
+            data,
+            function (resp) {
+                currentJobId = resp.parent_job_id || resp.job_id;
+                appendLog('[INFO] Job parent ' + currentJobId + ' créé (' + (resp.total || keywords.length) + ' mots-clés).');
+                startPolling(currentJobId, true);
+            },
+            function (err) {
+                appendLog('[ERROR] ' + (err.message || 'Erreur lancement bulk mots-clés.'), 'error');
                 $('#wz_progress, #wz_done').hide();
                 $('#wz_failed').show();
             }
@@ -553,17 +643,46 @@
             }
         }
 
+        function applyBulkSubmode() {
+            var submode = getBulkSubmode();
+            if (submode === 'keywords') {
+                $('#wz_bulk_city_row').hide();
+                $('#wz_bulk_keywords_row').show();
+                $('#wz_keyword_hint').hide();
+                $('#wz_keyword').closest('tr').hide(); // Cacher le champ "mot-clé base" — non utilisé en mode keywords.
+            } else {
+                $('#wz_bulk_city_row').show();
+                $('#wz_bulk_keywords_row').hide();
+                $('#wz_keyword_hint').show();
+                $('#wz_keyword').closest('tr').show();
+            }
+        }
+
         $('input[name="wz_mode"]').on('change', function () {
             var mode = $(this).val();
             if (mode === 'bulk') {
                 $('#wz_city_row').hide();
-                $('#wz_bulk_city_row').show();
+                $('#wz_bulk_submode_row').show();
+                applyBulkSubmode();
                 $('#wz_keyword_hint').show();
             } else {
                 $('#wz_city_row').show();
+                $('#wz_bulk_submode_row').hide();
                 $('#wz_bulk_city_row').hide();
+                $('#wz_bulk_keywords_row').hide();
                 $('#wz_keyword_hint').hide();
+                $('#wz_keyword').closest('tr').show();
             }
+        });
+
+        // Sous-mode bulk : Par villes / Par mots-clés.
+        $('input[name="wz_bulk_submode"]').on('change', applyBulkSubmode);
+
+        // Compteur de mots-clés en temps réel.
+        $('#wz_keywords_list').on('input', function () {
+            var lines = $(this).val().split('\n').filter(function (l) { return l.trim().length > 0; });
+            var n = lines.length;
+            $('#wz_keywords_count').text(n ? n + ' mot' + (n > 1 ? 's-clés' : '-clé') : '');
         });
 
         // Intention de recherche : afficher/masquer le textarea.

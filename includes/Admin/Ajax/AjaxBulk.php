@@ -312,6 +312,85 @@ class AjaxBulk {
     }
 
     /**
+     * Lance la génération en masse par liste de mots-clés (un par ligne).
+     *
+     * @return void
+     */
+    public function handle_launch_bulk_keywords(): void {
+        check_ajax_referer( 'techrappy_seo_bulk', 'nonce' );
+
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $post_data  = $_POST;
+        $profession = sanitize_text_field( $post_data['profession'] ?? '' );
+
+        if ( ! $profession ) {
+            wp_send_json_error( [ 'message' => __( 'La profession / secteur est requise.', 'techrappy-seo' ) ], 400 );
+        }
+
+        // Récupérer et sanitiser la liste de mots-clés.
+        $keywords_raw = (array) ( $post_data['keywords'] ?? [] );
+        $keywords     = [];
+
+        foreach ( $keywords_raw as $kw ) {
+            $kw = sanitize_text_field( $kw );
+            if ( '' !== $kw ) {
+                $keywords[] = $kw;
+            }
+        }
+
+        // Dédupliquer.
+        $keywords = array_values( array_unique( $keywords ) );
+
+        if ( empty( $keywords ) ) {
+            wp_send_json_error( [ 'message' => __( 'Liste de mots-clés vide.', 'techrappy-seo' ) ], 400 );
+        }
+
+        $bulk_params = [
+            'type'             => sanitize_key( $post_data['type']           ?? 'page' ),
+            'template_post_id' => absint( $post_data['template_post_id']     ?? 0 ),
+            'publish_status'   => sanitize_key( $post_data['publish_status'] ?? 'draft' ),
+            'slug_rule'        => sanitize_key( $post_data['slug_rule']      ?? 'from_keyword' ),
+            'wp_params'        => [
+                'profession'     => $profession,
+                'parent_id'      => absint(              $post_data['parent_id']      ?? 0 ),
+                'category_id'    => absint(              $post_data['category_id']    ?? 0 ),
+                'tags'           => array_map( 'absint', (array) ( $post_data['tags'] ?? [] ) ),
+                'menu_action'    => sanitize_key(        $post_data['menu_action']    ?? 'none' ),
+                'menu_id'        => absint(              $post_data['menu_id']        ?? 0 ),
+                'menu_name'      => sanitize_text_field( $post_data['menu_name']      ?? '' ),
+                'menu_location'  => sanitize_key(        $post_data['menu_location']  ?? '' ),
+                'label_format'   => sanitize_key(        $post_data['label_format']   ?? 'post_title' ),
+                'label_template' => sanitize_text_field( $post_data['label_template'] ?? '' ),
+                'user_intent'    => sanitize_textarea_field( $post_data['user_intent'] ?? '' ),
+            ],
+        ];
+
+        $manager   = new BulkJobManager();
+        $parent_id = $manager->create_and_dispatch_keywords( $bulk_params, $keywords );
+
+        if ( ! $parent_id ) {
+            wp_send_json_error( [ 'message' => __( 'Échec de la création du job bulk mots-clés.', 'techrappy-seo' ) ], 500 );
+        }
+
+        \TechrappySEO\Jobs\QueueScheduler::schedule_progress_check( $parent_id );
+        spawn_cron();
+
+        wp_send_json_success( [
+            'parent_job_id' => $parent_id,
+            'total'         => count( $keywords ),
+            'message'       => sprintf(
+                /* translators: %d = nombre de mots-clés */
+                __( 'Génération bulk lancée pour %d mots-clés.', 'techrappy-seo' ),
+                count( $keywords )
+            ),
+        ] );
+    }
+
+    /**
      * Reprend un job là où il s'est arrêté (sans repartir de zéro).
      * Conserve les étapes OK, réinitialise les étapes en erreur/bloquées.
      *

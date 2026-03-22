@@ -100,6 +100,35 @@ $steps_labels = [
                     </div>
                 </td>
             </tr>
+            <?php /* ── Sous-mode bulk : par villes ou par mots-clés ──────────────── */ ?>
+            <tr id="wz_bulk_submode_row" style="display:none;">
+                <th scope="row"><?php esc_html_e( 'Type de génération en masse', 'techrappy-seo' ); ?></th>
+                <td>
+                    <label style="display:inline-block;margin-right:24px;">
+                        <input type="radio" name="wz_bulk_submode" value="cities" checked>
+                        <?php esc_html_e( 'Par villes (base keyword + chaque ville)', 'techrappy-seo' ); ?>
+                    </label>
+                    <label>
+                        <input type="radio" name="wz_bulk_submode" value="keywords">
+                        <?php esc_html_e( 'Par mots-clés (un mot-clé par ligne)', 'techrappy-seo' ); ?>
+                    </label>
+                </td>
+            </tr>
+
+            <?php /* ── Zone mots-clés (visible en mode bulk + keywords) ───────────── */ ?>
+            <tr id="wz_bulk_keywords_row" style="display:none;">
+                <th scope="row"><label for="wz_keywords_list"><?php esc_html_e( 'Liste de mots-clés', 'techrappy-seo' ); ?></label></th>
+                <td>
+                    <textarea id="wz_keywords_list" name="wz_keywords_list" rows="10"
+                              class="large-text" style="font-family:monospace;font-size:13px;"
+                              placeholder="<?php esc_attr_e( "montage vidéo professionnel\nmonteur vidéo freelance\nmontage vidéo pour entrepreneur\nmontage vidéo YouTube\ncréation contenu vidéo", 'techrappy-seo' ); ?>"></textarea>
+                    <p class="description">
+                        <?php esc_html_e( 'Un mot-clé par ligne. Chaque ligne génère une page complète via le pipeline IA.', 'techrappy-seo' ); ?>
+                        <span id="wz_keywords_count" style="float:right;font-weight:600;color:#0073aa;"></span>
+                    </p>
+                </td>
+            </tr>
+
             <tr id="wz_bulk_city_row" style="display:none;">
                 <th scope="row"><label for="wz_ville_principale"><?php esc_html_e( 'Code postal de référence', 'techrappy-seo' ); ?></label></th>
                 <td>

@@ -95,6 +95,77 @@ class BulkJobManager {
     }
 
     /**
+     * Crée un job parent bulk et dispatche N jobs enfants (un par mot-clé).
+     * Contrairement à create_and_dispatch(), chaque keyword est utilisé tel quel
+     * sans concaténation avec une ville.
+     *
+     * @param array<string, mixed> $bulk_params Paramètres communs (profession, type, template...).
+     * @param array<int, string>   $keywords    Liste des mots-clés complets.
+     *
+     * @return string|false UUID du job parent ou false si erreur.
+     */
+    public function create_and_dispatch_keywords( array $bulk_params, array $keywords ): string|false {
+        $max = (int) SettingsRepository::get( 'bulk_max_cities', 50 );
+        $keywords = array_slice( array_unique( $keywords ), 0, $max );
+
+        if ( empty( $keywords ) ) {
+            return false;
+        }
+
+        // ── 1. Créer le job parent ────────────────────────────────────────────
+        $parent_id = JobRepository::insert( [
+            'mode'             => 'bulk',
+            'type'             => $bulk_params['type']             ?? 'page',
+            'template_post_id' => $bulk_params['template_post_id'] ?? 0,
+            'keyword'          => sprintf( '%d mots-clés', count( $keywords ) ),
+            'publish_status'   => $bulk_params['publish_status']   ?? 'draft',
+            'slug_rule'        => $bulk_params['slug_rule']        ?? 'from_keyword',
+            'wp_params'        => $bulk_params['wp_params']        ?? [],
+            'steps_data'       => [
+                '_bulk_total'     => count( $keywords ),
+                '_bulk_done'      => 0,
+                '_bulk_failed'    => 0,
+                '_bulk_submode'   => 'keywords',
+            ],
+        ] );
+
+        if ( ! $parent_id ) {
+            return false;
+        }
+
+        $wp_params = $bulk_params['wp_params'] ?? [];
+
+        // ── 2. Créer + planifier un job enfant par mot-clé ────────────────────
+        foreach ( $keywords as $keyword ) {
+            $keyword = sanitize_text_field( $keyword );
+
+            if ( '' === $keyword ) {
+                continue;
+            }
+
+            $child_id = JobRepository::insert( [
+                'mode'             => 'bulk',
+                'type'             => $bulk_params['type']             ?? 'page',
+                'template_post_id' => $bulk_params['template_post_id'] ?? 0,
+                'keyword'          => $keyword,
+                'city'             => '',
+                'publish_status'   => $bulk_params['publish_status']   ?? 'draft',
+                'slug_rule'        => $bulk_params['slug_rule']        ?? 'from_keyword',
+                'parent_job_id'    => $parent_id,
+                'wp_params'        => $wp_params,
+            ] );
+
+            if ( $child_id ) {
+                QueueScheduler::schedule_single( $child_id );
+            }
+        }
+
+        JobRepository::update_status( $parent_id, 'running' );
+
+        return $parent_id;
+    }
+
+    /**
      * Vérifie la progression d'un job bulk et met à jour le job parent.
      *
      * @param string $parent_job_id UUID du job parent.
