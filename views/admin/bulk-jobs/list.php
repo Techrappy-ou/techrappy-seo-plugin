@@ -15,6 +15,7 @@ include TECHRAPPY_SEO_VIEWS . 'partials/header.php';
 $status_labels = [
     'pending'          => [ __( 'En attente',  'techrappy-seo' ), 'secondary' ],
     'running'          => [ __( 'En cours',    'techrappy-seo' ), 'warning'   ],
+    'paused'           => [ __( 'En pause',    'techrappy-seo' ), 'secondary' ],
     'done'             => [ __( 'Terminé',     'techrappy-seo' ), 'success'   ],
     'done_with_errors' => [ __( 'Partiel',     'techrappy-seo' ), 'warning'   ],
     'failed'           => [ __( 'Échec',       'techrappy-seo' ), 'error'     ],
@@ -116,6 +117,7 @@ $status_labels = [
                                 <?php esc_html_e( 'Suivre', 'techrappy-seo' ); ?>
                             </a>
                         <?php endif; ?>
+
                         <?php if ( $is_failed && $is_bulk ) : ?>
                             <button type="button" class="button bj-btn-errors"
                                     data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>"
@@ -123,14 +125,52 @@ $status_labels = [
                                 🔍 <?php esc_html_e( 'Voir erreurs', 'techrappy-seo' ); ?>
                             </button>
                         <?php endif; ?>
+
+                        <?php /* Reprendre (depuis le dernier point de succès) */ ?>
+                        <?php if ( in_array( $status, [ 'running', 'failed', 'done_with_errors', 'paused' ], true ) ) : ?>
+                            <button type="button" class="button bj-btn-resume"
+                                    data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>"
+                                    data-is-bulk="<?php echo esc_attr( $is_bulk ? '1' : '0' ); ?>"
+                                    style="margin-top:2px;display:block;width:100%;text-align:center;">
+                                ↻ <?php esc_html_e( 'Reprendre', 'techrappy-seo' ); ?>
+                            </button>
+                        <?php endif; ?>
+
+                        <?php /* Relancer (repartir de zéro) — uniquement en échec */ ?>
                         <?php if ( $is_failed ) : ?>
                             <button type="button" class="button bj-btn-retry"
                                     data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>"
                                     data-is-bulk="<?php echo esc_attr( $is_bulk ? '1' : '0' ); ?>"
                                     style="color:#b91c1c;border-color:#b91c1c;margin-top:2px;display:block;width:100%;text-align:center;">
-                                ↺ <?php esc_html_e( 'Relancer', 'techrappy-seo' ); ?>
+                                ↺ <?php esc_html_e( 'Relancer (zéro)', 'techrappy-seo' ); ?>
                             </button>
                         <?php endif; ?>
+
+                        <?php /* Pause */ ?>
+                        <?php if ( in_array( $status, [ 'pending', 'running' ], true ) ) : ?>
+                            <button type="button" class="button bj-btn-pause"
+                                    data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>"
+                                    style="margin-top:2px;display:block;width:100%;text-align:center;">
+                                ⏸ <?php esc_html_e( 'Pause', 'techrappy-seo' ); ?>
+                            </button>
+                        <?php endif; ?>
+
+                        <?php /* Prioriser */ ?>
+                        <?php if ( in_array( $status, [ 'pending', 'paused' ], true ) ) : ?>
+                            <button type="button" class="button bj-btn-prioritize"
+                                    data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>"
+                                    style="margin-top:2px;display:block;width:100%;text-align:center;">
+                                ⬆ <?php esc_html_e( 'Prioriser', 'techrappy-seo' ); ?>
+                            </button>
+                        <?php endif; ?>
+
+                        <?php /* Supprimer */ ?>
+                        <button type="button" class="button bj-btn-delete"
+                                data-job-id="<?php echo esc_attr( $job['job_id'] ); ?>"
+                                data-is-bulk="<?php echo esc_attr( $is_bulk ? '1' : '0' ); ?>"
+                                style="color:#b91c1c;border-color:#b91c1c;margin-top:2px;display:block;width:100%;text-align:center;">
+                            ✕ <?php esc_html_e( 'Supprimer', 'techrappy-seo' ); ?>
+                        </button>
                     </td>
                 </tr>
                 <?php endforeach; ?>

@@ -151,13 +151,13 @@
             );
         });
 
-        // Bouton relancer (retry)
+        // Bouton relancer (retry — repart de zéro)
         $(document).on('click', '.bj-btn-retry', function () {
             var jobId  = $(this).data('job-id');
             var isBulk = $(this).data('is-bulk') === '1';
             var msg    = isBulk
-                ? 'Relancer tous les jobs enfants en échec ?'
-                : 'Relancer ce job ?';
+                ? 'Relancer tous les jobs enfants en échec (repart de zéro) ?'
+                : 'Relancer ce job depuis zéro ?';
 
             if (!window.confirm(msg)) { return; }
 
@@ -167,13 +167,110 @@
                 'techrappy_retry_job',
                 { nonce: TechrappySEO.nonces.bulk, job_id: jobId },
                 function (data) {
-                    $btn.prop('disabled', false).text('↺ Relancer');
+                    $btn.prop('disabled', false).text('↺ Relancer (zéro)');
                     alert(data.message || 'Job relancé.');
                     refreshList();
                 },
                 function (err) {
-                    $btn.prop('disabled', false).text('↺ Relancer');
+                    $btn.prop('disabled', false).text('↺ Relancer (zéro)');
                     alert('Erreur : ' + (err.message || 'Impossible de relancer le job.'));
+                }
+            );
+        });
+
+        // Bouton reprendre (depuis le dernier point de succès)
+        $(document).on('click', '.bj-btn-resume', function () {
+            var jobId  = $(this).data('job-id');
+            var isBulk = $(this).data('is-bulk') === '1';
+            var msg    = isBulk
+                ? 'Reprendre les jobs bloqués depuis leur dernier point de succès ?'
+                : 'Reprendre ce job depuis son dernier point de succès ?';
+
+            if (!window.confirm(msg)) { return; }
+
+            var $btn = $(this).prop('disabled', true).text('…');
+
+            TechrappySEOAjax(
+                'techrappy_resume_job',
+                { nonce: TechrappySEO.nonces.bulk, job_id: jobId },
+                function (data) {
+                    $btn.prop('disabled', false).text('↻ Reprendre');
+                    alert(data.message || 'Job repris.');
+                    refreshList();
+                },
+                function (err) {
+                    $btn.prop('disabled', false).text('↻ Reprendre');
+                    alert('Erreur : ' + (err.message || 'Impossible de reprendre le job.'));
+                }
+            );
+        });
+
+        // Bouton pause
+        $(document).on('click', '.bj-btn-pause', function () {
+            var jobId = $(this).data('job-id');
+            if (!window.confirm('Mettre ce job en pause ?')) { return; }
+
+            var $btn = $(this).prop('disabled', true).text('…');
+
+            TechrappySEOAjax(
+                'techrappy_pause_job',
+                { nonce: TechrappySEO.nonces.bulk, job_id: jobId },
+                function (data) {
+                    $btn.prop('disabled', false).text('⏸ Pause');
+                    alert(data.message || 'Job mis en pause.');
+                    refreshList();
+                },
+                function (err) {
+                    $btn.prop('disabled', false).text('⏸ Pause');
+                    alert('Erreur : ' + (err.message || 'Impossible de mettre en pause.'));
+                }
+            );
+        });
+
+        // Bouton prioriser
+        $(document).on('click', '.bj-btn-prioritize', function () {
+            var jobId = $(this).data('job-id');
+            if (!window.confirm('Passer ce job en priorité (sera traité en premier) ?')) { return; }
+
+            var $btn = $(this).prop('disabled', true).text('…');
+
+            TechrappySEOAjax(
+                'techrappy_prioritize_job',
+                { nonce: TechrappySEO.nonces.bulk, job_id: jobId },
+                function (data) {
+                    $btn.prop('disabled', false).text('⬆ Prioriser');
+                    alert(data.message || 'Job priorisé.');
+                    refreshList();
+                },
+                function (err) {
+                    $btn.prop('disabled', false).text('⬆ Prioriser');
+                    alert('Erreur : ' + (err.message || 'Impossible de prioriser.'));
+                }
+            );
+        });
+
+        // Bouton supprimer
+        $(document).on('click', '.bj-btn-delete', function () {
+            var jobId  = $(this).data('job-id');
+            var isBulk = $(this).data('is-bulk') === '1';
+            var msg    = isBulk
+                ? 'Supprimer ce job bulk et tous ses jobs enfants ? Cette action est irréversible.'
+                : 'Supprimer ce job ? Cette action est irréversible.';
+
+            if (!window.confirm(msg)) { return; }
+
+            var $btn = $(this).prop('disabled', true).text('…');
+
+            TechrappySEOAjax(
+                'techrappy_delete_job',
+                { nonce: TechrappySEO.nonces.bulk, job_id: jobId },
+                function (data) {
+                    alert(data.message || 'Job supprimé.');
+                    refreshList();
+                },
+                function (err) {
+                    $btn.prop('disabled', false).text('✕ Supprimer');
+                    alert('Erreur : ' + (err.message || 'Impossible de supprimer.'));
                 }
             );
         });

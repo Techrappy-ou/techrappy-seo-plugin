@@ -159,6 +159,7 @@ class AjaxBulk {
                 'menu_location'  => sanitize_key(        $post_data['menu_location']  ?? '' ),
                 'label_format'   => sanitize_key(        $post_data['label_format']   ?? 'post_title' ),
                 'label_template' => sanitize_text_field( $post_data['label_template'] ?? '' ),
+                'user_intent'    => sanitize_textarea_field( $post_data['user_intent'] ?? '' ),
             ],
         ];
 
@@ -308,6 +309,194 @@ class AjaxBulk {
         }
 
         wp_send_json_success( [ 'errors' => $errors ] );
+    }
+
+    /**
+     * Reprend un job là où il s'est arrêté (sans repartir de zéro).
+     * Conserve les étapes OK, réinitialise les étapes en erreur/bloquées.
+     *
+     * @return void
+     */
+    public function handle_resume_job(): void {
+        check_ajax_referer( 'techrappy_seo_bulk', 'nonce' );
+
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $job_id = sanitize_text_field( $_POST['job_id'] ?? '' );
+
+        if ( ! $job_id ) {
+            wp_send_json_error( [ 'message' => __( 'job_id manquant.', 'techrappy-seo' ) ], 400 );
+        }
+
+        $job = JobRepository::find( $job_id );
+        if ( ! $job ) {
+            wp_send_json_error( [ 'message' => __( 'Job introuvable.', 'techrappy-seo' ) ], 404 );
+        }
+
+        // Cas bulk parent : reprendre les enfants bloqués (running) ou échoués.
+        if ( 'bulk' === $job['mode'] && empty( $job['parent_job_id'] ) ) {
+            $stuck_children = JobRepository::list( [
+                'parent_job_id' => $job_id,
+                'limit'         => 200,
+            ] );
+
+            $resumed = 0;
+            foreach ( $stuck_children as $child ) {
+                if ( in_array( $child['status'], [ 'running', 'failed', 'pending' ], true ) ) {
+                    if ( JobRepository::resume_failed_steps( $child['job_id'] ) ) {
+                        \TechrappySEO\Jobs\QueueScheduler::schedule_single( $child['job_id'] );
+                        $resumed++;
+                    }
+                }
+            }
+
+            // Remettre le parent en running.
+            if ( $resumed > 0 ) {
+                JobRepository::update_status( $job_id, 'running' );
+                \TechrappySEO\Jobs\QueueScheduler::schedule_progress_check( $job_id );
+            }
+
+            spawn_cron();
+
+            wp_send_json_success( [
+                'resumed' => $resumed,
+                'message' => sprintf(
+                    /* translators: %d = nombre de jobs repris */
+                    _n( '%d job repris depuis son dernier point.', '%d jobs repris depuis leur dernier point.', $resumed, 'techrappy-seo' ),
+                    $resumed
+                ),
+            ] );
+        }
+
+        // Cas single ou enfant bulk.
+        if ( ! JobRepository::resume_failed_steps( $job_id ) ) {
+            wp_send_json_error( [ 'message' => __( 'Impossible de reprendre le job.', 'techrappy-seo' ) ], 500 );
+        }
+
+        \TechrappySEO\Jobs\QueueScheduler::schedule_single( $job_id );
+        spawn_cron();
+
+        wp_send_json_success( [ 'message' => __( 'Job repris depuis son dernier point de succès.', 'techrappy-seo' ) ] );
+    }
+
+    /**
+     * Supprime un job (et ses enfants si bulk parent).
+     *
+     * @return void
+     */
+    public function handle_delete_job(): void {
+        check_ajax_referer( 'techrappy_seo_bulk', 'nonce' );
+
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $job_id = sanitize_text_field( $_POST['job_id'] ?? '' );
+
+        if ( ! $job_id ) {
+            wp_send_json_error( [ 'message' => __( 'job_id manquant.', 'techrappy-seo' ) ], 400 );
+        }
+
+        $job = JobRepository::find( $job_id );
+        if ( ! $job ) {
+            wp_send_json_error( [ 'message' => __( 'Job introuvable.', 'techrappy-seo' ) ], 404 );
+        }
+
+        // Annuler l'action planifiée avant suppression.
+        \TechrappySEO\Jobs\QueueScheduler::cancel_single( $job_id );
+
+        if ( ! JobRepository::delete( $job_id ) ) {
+            wp_send_json_error( [ 'message' => __( 'Erreur lors de la suppression.', 'techrappy-seo' ) ], 500 );
+        }
+
+        wp_send_json_success( [ 'message' => __( 'Job supprimé.', 'techrappy-seo' ) ] );
+    }
+
+    /**
+     * Met un job en pause (statut 'paused') et annule son action planifiée.
+     *
+     * @return void
+     */
+    public function handle_pause_job(): void {
+        check_ajax_referer( 'techrappy_seo_bulk', 'nonce' );
+
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $job_id = sanitize_text_field( $_POST['job_id'] ?? '' );
+
+        if ( ! $job_id ) {
+            wp_send_json_error( [ 'message' => __( 'job_id manquant.', 'techrappy-seo' ) ], 400 );
+        }
+
+        $job = JobRepository::find( $job_id );
+        if ( ! $job ) {
+            wp_send_json_error( [ 'message' => __( 'Job introuvable.', 'techrappy-seo' ) ], 404 );
+        }
+
+        // Cas bulk parent : mettre en pause tous les enfants en attente.
+        if ( 'bulk' === $job['mode'] && empty( $job['parent_job_id'] ) ) {
+            $pending_children = JobRepository::list( [
+                'parent_job_id' => $job_id,
+                'status'        => 'pending',
+                'limit'         => 200,
+            ] );
+
+            foreach ( $pending_children as $child ) {
+                \TechrappySEO\Jobs\QueueScheduler::cancel_single( $child['job_id'] );
+                JobRepository::update_status( $child['job_id'], 'paused' );
+            }
+        }
+
+        // Annuler l'action planifiée du job lui-même.
+        \TechrappySEO\Jobs\QueueScheduler::cancel_single( $job_id );
+        JobRepository::update_status( $job_id, 'paused' );
+
+        wp_send_json_success( [ 'message' => __( 'Job mis en pause.', 'techrappy-seo' ) ] );
+    }
+
+    /**
+     * Priorise un job en le replanifiant immédiatement (devant la file).
+     *
+     * @return void
+     */
+    public function handle_prioritize_job(): void {
+        check_ajax_referer( 'techrappy_seo_bulk', 'nonce' );
+
+        if ( ! current_user_can( TECHRAPPY_SEO_CAPABILITY ) ) {
+            wp_send_json_error( [ 'message' => __( 'Accès non autorisé.', 'techrappy-seo' ) ], 403 );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $job_id = sanitize_text_field( $_POST['job_id'] ?? '' );
+
+        if ( ! $job_id ) {
+            wp_send_json_error( [ 'message' => __( 'job_id manquant.', 'techrappy-seo' ) ], 400 );
+        }
+
+        $job = JobRepository::find( $job_id );
+        if ( ! $job ) {
+            wp_send_json_error( [ 'message' => __( 'Job introuvable.', 'techrappy-seo' ) ], 404 );
+        }
+
+        // Annuler l'action existante puis replanifier immédiatement.
+        \TechrappySEO\Jobs\QueueScheduler::cancel_single( $job_id );
+
+        // Remettre en pending si en pause.
+        if ( 'paused' === $job['status'] ) {
+            JobRepository::update_status( $job_id, 'pending' );
+        }
+
+        \TechrappySEO\Jobs\QueueScheduler::schedule_single( $job_id );
+        spawn_cron();
+
+        wp_send_json_success( [ 'message' => __( 'Job priorisé — il sera traité en premier.', 'techrappy-seo' ) ] );
     }
 
     /**

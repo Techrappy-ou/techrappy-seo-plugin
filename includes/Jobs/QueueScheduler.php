@@ -80,6 +80,22 @@ class QueueScheduler {
     }
 
     /**
+     * Annule l'action planifiée pour un job spécifique.
+     * Utilisé lors d'une pause ou d'une suppression.
+     *
+     * @param string $job_id UUID du job.
+     *
+     * @return void
+     */
+    public static function cancel_single( string $job_id ): void {
+        if ( function_exists( 'as_unschedule_action' ) ) {
+            as_unschedule_action( 'techrappy_seo_process_single_job', [ 'job_id' => $job_id ], 'techrappy-seo' );
+        } else {
+            wp_clear_scheduled_hook( 'techrappy_seo_process_single_job', [ $job_id ] );
+        }
+    }
+
+    /**
      * Supprime toutes les actions planifiées du plugin.
      * Appelé à la désactivation.
      *

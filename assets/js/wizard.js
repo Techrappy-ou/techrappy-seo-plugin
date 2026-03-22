@@ -256,6 +256,7 @@
         // Arrêter tout polling précédent avant de démarrer un nouveau job.
         stopPolling();
 
+        var intentMode = $('input[name="wz_intent_mode"]:checked').val() || 'auto';
         var data = {
             nonce:            TechrappySEO.nonces.wizard,
             wizard_action:    'create_job',
@@ -274,6 +275,8 @@
             menu_location:    $('#bj-menu-location').val()    || '',
             label_format:     $('#bj-label-format').val()     || 'post_title',
             label_template:   $('#bj-label-template').val()   || '',
+            intent_mode:      intentMode,
+            user_intent:      intentMode === 'manual' ? $('#wz_user_intent').val().trim() : '',
         };
 
         showStep(TOTAL_STEPS);
@@ -317,6 +320,7 @@
             return;
         }
 
+        var intentModeBulk = $('input[name="wz_intent_mode"]:checked').val() || 'auto';
         var data = {
             nonce:            TechrappySEO.nonces.bulk,
             keyword_base:     $('#wz_keyword').val().trim(),
@@ -333,6 +337,8 @@
             menu_location:    $('#bj-menu-location').val()    || '',
             label_format:     $('#bj-label-format').val()     || 'post_title',
             label_template:   $('#bj-label-template').val()   || '',
+            intent_mode:      intentModeBulk,
+            user_intent:      intentModeBulk === 'manual' ? $('#wz_user_intent').val().trim() : '',
         };
         // Envoyer les villes comme tableau d'objets {city, cp}.
         $.each(selectedCities, function (i, c) {
@@ -558,6 +564,28 @@
                 $('#wz_bulk_city_row').hide();
                 $('#wz_keyword_hint').hide();
             }
+        });
+
+        // Intention de recherche : afficher/masquer le textarea.
+        $('input[name="wz_intent_mode"]').on('change', function () {
+            if ($(this).val() === 'manual') {
+                $('#wz_user_intent_wrap').show();
+            } else {
+                $('#wz_user_intent_wrap').hide();
+            }
+        });
+
+        // Menu : afficher/masquer les sous-champs selon l'action choisie.
+        $(document).on('change', '#bj-menu-action', function () {
+            var action = $(this).val();
+            $('#wz_menu_existing_row').toggle(action === 'add_existing');
+            $('#wz_menu_new_row').toggle(action === 'create_new');
+            $('#wz_menu_label_row').toggle(action !== 'none');
+        });
+
+        // Format de libellé : afficher/masquer le champ custom.
+        $(document).on('change', '#bj-label-format', function () {
+            $('#wz_menu_custom_label_wrap').toggle($(this).val() === 'custom');
         });
 
         $('#wz_type').on('change', function () {

@@ -82,6 +82,24 @@ $steps_labels = [
                            placeholder="<?php esc_attr_e( 'ex : Toulouse', 'techrappy-seo' ); ?>">
                 </td>
             </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e( 'Intention de recherche', 'techrappy-seo' ); ?></th>
+                <td>
+                    <label style="display:block;margin-bottom:8px;">
+                        <input type="radio" name="wz_intent_mode" value="auto" checked>
+                        <?php esc_html_e( 'Analyser via IA (recommandé, +1 appel API)', 'techrappy-seo' ); ?>
+                    </label>
+                    <label style="display:block;">
+                        <input type="radio" name="wz_intent_mode" value="manual">
+                        <?php esc_html_e( 'Je la fournis moi-même (plus rapide, économise des tokens)', 'techrappy-seo' ); ?>
+                    </label>
+                    <div id="wz_user_intent_wrap" style="display:none;margin-top:8px;">
+                        <textarea id="wz_user_intent" name="wz_user_intent" rows="3" class="large-text"
+                                  placeholder="<?php esc_attr_e( 'ex : intention transactionnelle — l\'utilisateur cherche à prendre rendez-vous avec un psychologue près de chez lui', 'techrappy-seo' ); ?>"></textarea>
+                        <p class="description"><?php esc_html_e( 'Décrivez l\'intention : type (transactionnelle, informationnelle…), besoin, contexte.', 'techrappy-seo' ); ?></p>
+                    </div>
+                </td>
+            </tr>
             <tr id="wz_bulk_city_row" style="display:none;">
                 <th scope="row"><label for="wz_ville_principale"><?php esc_html_e( 'Code postal de référence', 'techrappy-seo' ); ?></label></th>
                 <td>
@@ -178,6 +196,74 @@ $steps_labels = [
                         <option value="from_keyword"><?php esc_html_e( 'Depuis le mot-clé', 'techrappy-seo' ); ?></option>
                         <option value="from_h1"><?php esc_html_e( 'Depuis le H1 généré', 'techrappy-seo' ); ?></option>
                     </select>
+                </td>
+            </tr>
+
+            <?php /* ── Gestion des menus ─────────────────────────────────────────── */ ?>
+            <tr>
+                <th scope="row"><label for="bj-menu-action"><?php esc_html_e( 'Ajouter au menu', 'techrappy-seo' ); ?></label></th>
+                <td>
+                    <select id="bj-menu-action" name="bj_menu_action">
+                        <option value="none"><?php esc_html_e( '— Ne pas ajouter au menu —', 'techrappy-seo' ); ?></option>
+                        <option value="add_existing"><?php esc_html_e( 'Ajouter à un menu existant', 'techrappy-seo' ); ?></option>
+                        <option value="create_new"><?php esc_html_e( 'Créer un nouveau menu', 'techrappy-seo' ); ?></option>
+                    </select>
+                </td>
+            </tr>
+            <tr id="wz_menu_existing_row" style="display:none;">
+                <th scope="row"><label for="bj-menu-id"><?php esc_html_e( 'Menu existant', 'techrappy-seo' ); ?></label></th>
+                <td>
+                    <?php $nav_menus = wp_get_nav_menus(); ?>
+                    <?php if ( ! empty( $nav_menus ) ) : ?>
+                        <select id="bj-menu-id" name="bj_menu_id">
+                            <?php foreach ( $nav_menus as $menu ) : ?>
+                                <option value="<?php echo esc_attr( $menu->term_id ); ?>">
+                                    <?php echo esc_html( $menu->name ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    <?php else : ?>
+                        <input type="hidden" id="bj-menu-id" name="bj_menu_id" value="0">
+                        <p class="description"><?php esc_html_e( 'Aucun menu trouvé. Créez-en un dans Apparence > Menus, ou choisissez "Créer un nouveau menu".', 'techrappy-seo' ); ?></p>
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <tr id="wz_menu_new_row" style="display:none;">
+                <th scope="row"><label for="bj-menu-name"><?php esc_html_e( 'Nom du nouveau menu', 'techrappy-seo' ); ?></label></th>
+                <td>
+                    <input type="text" id="bj-menu-name" name="bj_menu_name" class="regular-text"
+                           placeholder="<?php esc_attr_e( 'ex : Menu SEO Marseille', 'techrappy-seo' ); ?>">
+                    <?php $registered_menus = get_registered_nav_menus(); ?>
+                    <?php if ( ! empty( $registered_menus ) ) : ?>
+                        <p class="description" style="margin-top:8px;">
+                            <?php esc_html_e( 'Emplacement de thème (optionnel) :', 'techrappy-seo' ); ?>
+                        </p>
+                        <select id="bj-menu-location" name="bj_menu_location">
+                            <option value=""><?php esc_html_e( '— Aucun emplacement —', 'techrappy-seo' ); ?></option>
+                            <?php foreach ( $registered_menus as $location => $description ) : ?>
+                                <option value="<?php echo esc_attr( $location ); ?>">
+                                    <?php echo esc_html( $description ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    <?php else : ?>
+                        <input type="hidden" id="bj-menu-location" name="bj_menu_location" value="">
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <tr id="wz_menu_label_row" style="display:none;">
+                <th scope="row"><label for="bj-label-format"><?php esc_html_e( 'Format du libellé de menu', 'techrappy-seo' ); ?></label></th>
+                <td>
+                    <select id="bj-label-format" name="bj_label_format">
+                        <option value="post_title"><?php esc_html_e( 'Titre du post', 'techrappy-seo' ); ?></option>
+                        <option value="keyword_city"><?php esc_html_e( 'Mot-clé + Ville', 'techrappy-seo' ); ?></option>
+                        <option value="custom"><?php esc_html_e( 'Personnalisé', 'techrappy-seo' ); ?></option>
+                    </select>
+                    <div id="wz_menu_custom_label_wrap" style="display:none;margin-top:8px;">
+                        <input type="text" id="bj-label-template" name="bj_label_template" class="regular-text"
+                               placeholder="<?php esc_attr_e( 'ex : {keyword} – {city}', 'techrappy-seo' ); ?>">
+                        <p class="description"><?php esc_html_e( 'Variables : {keyword}, {city}, {title}', 'techrappy-seo' ); ?></p>
+                    </div>
                 </td>
             </tr>
         </table>

@@ -70,6 +70,7 @@ class JobRunner {
             'slug_rule'        => $db_job['slug_rule']        ?? 'from_keyword',
             'steps'            => is_array( $db_job['steps_data'] ) ? $db_job['steps_data'] : [],
             'result_data'      => is_array( $db_job['result_data'] ) ? $db_job['result_data'] : [],
+            'user_intent'      => $wp_params['user_intent']   ?? '',
         ];
 
         // ── 5. Exécuter le pipeline ───────────────────────────────────────────

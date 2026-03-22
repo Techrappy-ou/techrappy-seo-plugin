@@ -153,6 +153,10 @@ final class Plugin {
         $this->loader->add_action( 'wp_ajax_techrappy_get_job_status',  $ajax_bulk, 'handle_get_job_status' );
         $this->loader->add_action( 'wp_ajax_techrappy_retry_job',       $ajax_bulk, 'handle_retry_job' );
         $this->loader->add_action( 'wp_ajax_techrappy_get_bulk_errors', $ajax_bulk, 'handle_get_bulk_errors' );
+        $this->loader->add_action( 'wp_ajax_techrappy_resume_job',      $ajax_bulk, 'handle_resume_job' );
+        $this->loader->add_action( 'wp_ajax_techrappy_delete_job',      $ajax_bulk, 'handle_delete_job' );
+        $this->loader->add_action( 'wp_ajax_techrappy_pause_job',       $ajax_bulk, 'handle_pause_job' );
+        $this->loader->add_action( 'wp_ajax_techrappy_prioritize_job',  $ajax_bulk, 'handle_prioritize_job' );
 
         // Audit de templates.
         $ajax_audit = new \TechrappySEO\Admin\Ajax\AjaxTemplateAudit();

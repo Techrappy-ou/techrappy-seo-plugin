@@ -238,6 +238,71 @@ class JobRepository {
     }
 
     /**
+     * Reprend un job là où il s'est arrêté.
+     * Conserve les étapes 'ok', réinitialise les étapes 'running'/'error'.
+     * Les logs existants sont conservés.
+     *
+     * @param string $job_id UUID du job.
+     *
+     * @return bool
+     */
+    public static function resume_failed_steps( string $job_id ): bool {
+        global $wpdb;
+
+        $job = self::find( $job_id );
+        if ( ! $job ) {
+            return false;
+        }
+
+        $steps_data = is_array( $job['steps_data'] ) ? $job['steps_data'] : [];
+
+        // Réinitialiser uniquement les étapes non terminées.
+        foreach ( $steps_data as $key => $step ) {
+            if ( substr( $key, 0, 1 ) === '_' ) {
+                continue; // Conserver les métadonnées bulk (_bulk_total, etc.)
+            }
+            if ( is_array( $step ) ) {
+                $status = $step['status'] ?? '';
+                if ( 'running' === $status || 'error' === $status ) {
+                    unset( $steps_data[ $key ] );
+                }
+            }
+        }
+
+        $result = $wpdb->update(
+            self::table(),
+            [
+                'status'     => 'pending',
+                'steps_data' => wp_json_encode( $steps_data ),
+                'result_data' => '[]',
+            ],
+            [ 'job_id' => $job_id ],
+            [ '%s', '%s', '%s' ],
+            [ '%s' ]
+        );
+
+        return false !== $result;
+    }
+
+    /**
+     * Supprime un job et ses enfants (bulk).
+     *
+     * @param string $job_id UUID du job.
+     *
+     * @return bool
+     */
+    public static function delete( string $job_id ): bool {
+        global $wpdb;
+
+        // Supprimer les enfants bulk en premier.
+        $wpdb->delete( self::table(), [ 'parent_job_id' => $job_id ], [ '%s' ] );
+
+        $result = $wpdb->delete( self::table(), [ 'job_id' => $job_id ], [ '%s' ] );
+
+        return false !== $result;
+    }
+
+    /**
      * Décode les champs JSON d'une ligne de la table.
      *
      * @param array<string, mixed> $row Ligne brute depuis wpdb.

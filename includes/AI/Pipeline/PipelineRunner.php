@@ -68,7 +68,24 @@ class PipelineRunner {
         $this->job['_system_prompt'] = $system_data['content'] ?? '';
 
         // ── 1. Analyse d'intention ────────────────────────────────────────────
-        $this->execute_step( 'intent', new Steps\StepIntent() );
+        // Si l'utilisateur a fourni son intention manuellement, on l'injecte
+        // directement sans appel à l'API (gain de temps + économie de tokens).
+        if ( ! empty( $this->job['user_intent'] ) ) {
+            $existing = $this->job['steps']['intent'] ?? [];
+            if ( ! ( is_array( $existing ) && ( $existing['status'] ?? '' ) === 'ok' ) ) {
+                $this->job['steps']['intent'] = [
+                    'status' => 'ok',
+                    'data'   => [
+                        'intention_principale' => $this->job['user_intent'],
+                        '_source'              => 'user_provided',
+                    ],
+                ];
+                $this->logger->info( 'intent', 'Intention fournie par l\'utilisateur — étape IA ignorée.' );
+                $this->persist_steps();
+            }
+        } else {
+            $this->execute_step( 'intent', new Steps\StepIntent() );
+        }
 
         // ── 2. Plan SEO ───────────────────────────────────────────────────────
         $this->execute_step( 'plan', new Steps\StepPlan() );
@@ -128,6 +145,13 @@ class PipelineRunner {
      * @return array<string, mixed> Données produites par l'étape.
      */
     private function execute_step( string $key, StepInterface $step ): array {
+        // Skip si l'étape a déjà réussi (mode reprise après crash).
+        $existing = $this->job['steps'][ $key ] ?? null;
+        if ( is_array( $existing ) && ( $existing['status'] ?? '' ) === 'ok' && ! empty( $existing['data'] ) ) {
+            $this->logger->info( $key, 'Étape déjà complétée — ignorée (reprise).' );
+            return $existing['data'];
+        }
+
         $this->logger->info( $key, "Démarrage de l'étape." );
         $this->job['steps'][ $key ] = [ 'status' => 'running', 'data' => [] ];
 
