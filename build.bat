@@ -11,6 +11,9 @@ set ZIP_CPANEL=techrappy-seo-cpanel.zip
 set FOLDER=techrappy-seo
 set BUILD_DIR=%TEMP%\techrappy-seo-build
 
+REM Sauvegarder le répertoire courant AVANT toute opération
+set SAVED_CD=%CD%
+
 echo.
 echo [1/3] Nettoyage du dossier temporaire...
 if exist "%BUILD_DIR%" rd /s /q "%BUILD_DIR%"
@@ -33,37 +36,38 @@ xcopy /E /I /Y "languages" "%BUILD_DIR%\%FOLDER%\languages" >nul
 echo [3/3] Creation des archives...
 
 REM Supprimer les zips précédents si existants
-if exist "%ZIP_WP%"     del /f /q "%ZIP_WP%"
-if exist "%ZIP_CPANEL%" del /f /q "%ZIP_CPANEL%"
+if exist "%SAVED_CD%\%ZIP_WP%"     del /f /q "%SAVED_CD%\%ZIP_WP%"
+if exist "%SAVED_CD%\%ZIP_CPANEL%" del /f /q "%SAVED_CD%\%ZIP_CPANEL%"
+
+REM IMPORTANT : on se place dans BUILD_DIR et on utilise un chemin RELATIF
+REM pour éviter que Compress-Archive inclue des dossiers parents dans l'archive.
 
 REM --- ZIP 1 : pour upload via WordPress Admin ---
-REM Le dossier techrappy-seo/ est INCLUS dans l'archive (standard WP)
+REM Structure : techrappy-seo/ à la racine (standard WordPress)
 powershell -NoProfile -Command ^
-  "Compress-Archive -Path '%BUILD_DIR%\%FOLDER%' -DestinationPath '%CD%\%ZIP_WP%' -Force"
+  "Set-Location '%BUILD_DIR%'; Compress-Archive -Path '.\%FOLDER%' -DestinationPath '%SAVED_CD%\%ZIP_WP%' -Force"
 
 REM --- ZIP 2 : pour installation manuelle via cPanel ---
-REM Les fichiers sont directement a la racine de l'archive (sans dossier wrapper)
-REM => Evite la double imbrication quand cPanel cree automatiquement un sous-dossier
+REM Structure : fichiers directement à la racine (sans dossier wrapper)
 powershell -NoProfile -Command ^
-  "Compress-Archive -Path '%BUILD_DIR%\%FOLDER%\*' -DestinationPath '%CD%\%ZIP_CPANEL%' -Force"
+  "Set-Location '%BUILD_DIR%'; Compress-Archive -Path '.\%FOLDER%\*' -DestinationPath '%SAVED_CD%\%ZIP_CPANEL%' -Force"
 
 if %ERRORLEVEL% EQU 0 (
     echo.
-    echo  OK ! Archives creees :
+    echo  OK ! Archives creees dans : %SAVED_CD%
     echo.
     echo  [1] %ZIP_WP%
-    echo      Via WordPress Admin (recommande) :
+    echo      Methode recommandee - WordPress Admin :
     echo        Extensions ^> Ajouter ^> Telecharger une extension
     echo        Choisir ce fichier ^> Installer ^> Activer
     echo.
     echo  [2] %ZIP_CPANEL%
-    echo      Via cPanel Gestionnaire de fichiers :
-    echo        1. Supprimer le dossier /wp-content/plugins/techrappy-seo/
+    echo      Methode manuelle - cPanel Gestionnaire de fichiers :
+    echo        1. Supprimer /wp-content/plugins/techrappy-seo/ entierement
     echo        2. Naviguer dans /wp-content/plugins/
     echo        3. Creer un dossier "techrappy-seo"
-    echo        4. Naviguer DANS ce nouveau dossier
-    echo        5. Uploader %ZIP_CPANEL% ici
-    echo        6. Extraire ici (les fichiers s'installent sans double imbrication)
+    echo        4. Naviguer DANS ce dossier
+    echo        5. Uploader %ZIP_CPANEL% ici puis Extraire
     echo.
 ) else (
     echo.
