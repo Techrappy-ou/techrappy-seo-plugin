@@ -56,18 +56,17 @@ if %ERRORLEVEL% EQU 0 (
     echo.
     echo  OK ! Archives creees dans : %SAVED_CD%
     echo.
-    echo  [1] %ZIP_WP%
-    echo      Methode recommandee - WordPress Admin :
-    echo        Extensions ^> Ajouter ^> Telecharger une extension
-    echo        Choisir ce fichier ^> Installer ^> Activer
+    echo  [1] %ZIP_WP% — Site vierge (premiere installation) :
+    echo      WordPress Admin ^> Extensions ^> Ajouter ^> Telecharger
+    echo      Choisir ce fichier ^> Installer ^> Activer
     echo.
-    echo  [2] %ZIP_CPANEL%
-    echo      Methode manuelle - cPanel Gestionnaire de fichiers :
-    echo        1. Supprimer /wp-content/plugins/techrappy-seo/ entierement
-    echo        2. Naviguer dans /wp-content/plugins/
-    echo        3. Creer un dossier "techrappy-seo"
-    echo        4. Naviguer DANS ce dossier
-    echo        5. Uploader %ZIP_CPANEL% ici puis Extraire
+    echo  [2] %ZIP_WP% — Site avec ancienne installation (via Terminal cPanel) :
+    echo      1. Uploader %ZIP_WP% dans /wp-content/plugins/ via cPanel
+    echo      2. Dans Terminal cPanel :
+    echo         SITE=chapeau-media.fr
+    echo         rm -rf ~/^$SITE/wp-content/plugins/techrappy-seo
+    echo         cd ~/^$SITE/wp-content/plugins ^&^& umask 022 ^&^& unzip techrappy-seo.zip ^&^& rm techrappy-seo.zip
+    echo      3. Activer depuis wp-admin/plugins.php
     echo.
 ) else (
     echo.
