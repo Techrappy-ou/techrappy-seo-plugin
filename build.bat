@@ -1,7 +1,7 @@
 @echo off
 REM ============================================================
-REM  build.bat — Génère techrappy-seo.zip pour WordPress
-REM  Double-cliquez sur ce fichier ou exécutez-le dans CMD.
+REM  build.bat -- Genere techrappy-seo.zip pour WordPress
+REM  Double-cliquez sur ce fichier ou executez-le dans CMD.
 REM ============================================================
 
 setlocal
@@ -10,8 +10,6 @@ set ZIP_WP=techrappy-seo.zip
 set ZIP_CPANEL=techrappy-seo-cpanel.zip
 set FOLDER=techrappy-seo
 set BUILD_DIR=%TEMP%\techrappy-seo-build
-
-REM Sauvegarder le répertoire courant AVANT toute opération
 set SAVED_CD=%CD%
 
 echo.
@@ -21,12 +19,10 @@ mkdir "%BUILD_DIR%\%FOLDER%"
 
 echo [2/3] Copie des fichiers du plugin...
 
-REM Fichiers racine
 copy /Y "techrappy-seo.php"  "%BUILD_DIR%\%FOLDER%\" >nul
 copy /Y "index.php"          "%BUILD_DIR%\%FOLDER%\" >nul
 copy /Y "uninstall.php"      "%BUILD_DIR%\%FOLDER%\" >nul
 
-REM Dossiers sources
 xcopy /E /I /Y "includes"  "%BUILD_DIR%\%FOLDER%\includes"  >nul
 xcopy /E /I /Y "views"     "%BUILD_DIR%\%FOLDER%\views"     >nul
 xcopy /E /I /Y "assets"    "%BUILD_DIR%\%FOLDER%\assets"    >nul
@@ -35,46 +31,44 @@ xcopy /E /I /Y "languages" "%BUILD_DIR%\%FOLDER%\languages" >nul
 
 echo [3/3] Creation des archives...
 
-REM Supprimer les zips précédents si existants
 if exist "%SAVED_CD%\%ZIP_WP%"     del /f /q "%SAVED_CD%\%ZIP_WP%"
 if exist "%SAVED_CD%\%ZIP_CPANEL%" del /f /q "%SAVED_CD%\%ZIP_CPANEL%"
 
-REM IMPORTANT : on se place dans BUILD_DIR et on utilise un chemin RELATIF
-REM pour éviter que Compress-Archive inclue des dossiers parents dans l'archive.
+REM On se place dans le dossier build pour que Compress-Archive
+REM n'inclue pas les dossiers parents dans l'archive.
+pushd "%BUILD_DIR%"
 
-REM --- ZIP 1 : pour upload via WordPress Admin ---
-REM Structure : techrappy-seo/ à la racine (standard WordPress)
-powershell -NoProfile -Command "Set-Location '%BUILD_DIR%'; Compress-Archive -Path '.\%FOLDER%' -DestinationPath '%SAVED_CD%\%ZIP_WP%' -Force"
+powershell -NoProfile -Command "Compress-Archive -Path '.\%FOLDER%' -DestinationPath '%SAVED_CD%\%ZIP_WP%' -Force"
+powershell -NoProfile -Command "Compress-Archive -Path '.\%FOLDER%\*' -DestinationPath '%SAVED_CD%\%ZIP_CPANEL%' -Force"
 
-REM --- ZIP 2 : pour installation manuelle via cPanel ---
-REM Structure : fichiers directement à la racine (sans dossier wrapper)
-powershell -NoProfile -Command "Set-Location '%BUILD_DIR%'; Compress-Archive -Path '.\%FOLDER%\*' -DestinationPath '%SAVED_CD%\%ZIP_CPANEL%' -Force"
+popd
 
-if %ERRORLEVEL% EQU 0 (
-    echo.
-    echo  OK ! Archives creees dans : %SAVED_CD%
-    echo.
-    echo  [1] %ZIP_WP% — Site vierge (premiere installation) :
-    echo      WordPress Admin ^> Extensions ^> Ajouter ^> Telecharger
-    echo      Choisir ce fichier ^> Installer ^> Activer
-    echo.
-    echo  [2] %ZIP_WP% — Site avec ancienne installation (via Terminal cPanel) :
-    echo      1. Uploader %ZIP_WP% dans /wp-content/plugins/ via cPanel
-    echo      2. Dans Terminal cPanel :
-    echo         SITE=chapeau-media.fr
-    echo         rm -rf ~/^$SITE/wp-content/plugins/techrappy-seo
-    echo         cd ~/^$SITE/wp-content/plugins ^&^& umask 022 ^&^& unzip techrappy-seo.zip ^&^& rm techrappy-seo.zip
-    echo      3. Activer depuis wp-admin/plugins.php
-    echo.
-) else (
-    echo.
-    echo  ERREUR : la creation du zip a echoue.
-    echo  Verifiez que PowerShell est disponible sur votre systeme.
-    echo.
-)
+if %ERRORLEVEL% NEQ 0 goto :error
 
-REM Nettoyage
-rd /s /q "%BUILD_DIR%"
+echo.
+echo  OK ! Archives creees dans : %SAVED_CD%
+echo.
+echo  [1] %ZIP_WP% -- Premiere installation (site vierge) :
+echo      WordPress Admin -- Extensions -- Ajouter -- Telecharger
+echo      Choisir ce fichier -- Installer -- Activer
+echo.
+echo  [2] %ZIP_CPANEL% -- Mise a jour via Terminal cPanel :
+echo      1. Uploader %ZIP_CPANEL% dans /wp-content/plugins/ via cPanel
+echo      2. Dans Terminal cPanel :
+echo         cd ~/chapeau-media.fr/wp-content/plugins
+echo         rm -rf techrappy-seo
+echo         unzip %ZIP_CPANEL% -d techrappy-seo
+echo         rm %ZIP_CPANEL%
+echo.
+goto :end
 
+:error
+echo.
+echo  ERREUR : la creation du zip a echoue.
+echo  Verifiez que PowerShell est disponible sur votre systeme.
+echo.
+
+:end
+rd /s /q "%BUILD_DIR%" 2>nul
 pause
 endlocal
