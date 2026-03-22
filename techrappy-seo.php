@@ -3,7 +3,7 @@
  * Plugin Name: Techrappy SEO
  * Plugin URI: https://techrappy.fr
  * Description: Génération automatique de pages et articles SEO-ready avec Divi Builder et OpenAI.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Requires at least: 6.2
  * Requires PHP: 8.0
  * Author: Techrappy
@@ -27,7 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // ─────────────────────────────────────────────
 
 /** Version du plugin */
-define( 'TECHRAPPY_SEO_VERSION', '1.0.0' );
+define( 'TECHRAPPY_SEO_VERSION', '1.0.1' );
 
 /** Chemin absolu vers le répertoire racine du plugin (avec slash final) */
 define( 'TECHRAPPY_SEO_PATH', plugin_dir_path( __FILE__ ) );
