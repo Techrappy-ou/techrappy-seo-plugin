@@ -104,13 +104,15 @@ class PostWriter {
             return false;
         }
 
-        // ── 3b. Mise en page Divi : pleine largeur (pas de barre latérale) ───
-        // Divi utilise _et_pb_page_layout pour contrôler la sidebar.
-        // et_no_sidebar = "Pas de barre latérale" dans les réglages Divi.
-        update_post_meta( $post_id, '_et_pb_page_layout', 'et_no_sidebar' );
-        // Activer le Divi Builder sur le post créé programmatiquement.
+        // ── 3b. Mise en page Divi : pleine largeur ───────────────────────────
+        // 'et_full_width_page' = pleine largeur (sans marges du thème), requis
+        // pour que le Divi Builder utilise toute la largeur dès la création.
+        // 'et_no_sidebar' enlève juste la sidebar mais conserve les marges du thème.
+        update_post_meta( $post_id, '_et_pb_page_layout', 'et_full_width_page' );
+        // Activer le Divi Builder : Divi compare strictement à la chaîne 'on',
+        // pas à '1' — sans 'on' la page s'affiche sans le builder côté front-end.
         if ( $template_post_id > 0 ) {
-            update_post_meta( $post_id, '_et_pb_use_builder', '1' );
+            update_post_meta( $post_id, '_et_pb_use_builder', 'on' );
         }
 
         // ── 4. Écrire les meta Yoast SEO ─────────────────────────────────────
