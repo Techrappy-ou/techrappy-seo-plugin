@@ -610,14 +610,55 @@ class AjaxBulk {
             'result'  => $job['result_data'] ?? [],
         ];
 
-        // Pour les jobs bulk : progression.
+        // Pour les jobs bulk : progression calculée en temps réel depuis les enfants.
+        // On ne lit pas steps_data (périmées) mais on recompte directement les statuts.
         if ( 'bulk' === $job['mode'] && empty( $job['parent_job_id'] ) ) {
-            $steps = is_array( $job['steps_data'] ) ? $job['steps_data'] : [];
+            $children = JobRepository::list( [
+                'parent_job_id' => $job['job_id'],
+                'limit'         => 500,
+            ] );
+
+            $total   = count( $children );
+            $done    = 0;
+            $failed  = 0;
+            $running = 0;
+            $pending = 0;
+
+            foreach ( $children as $child ) {
+                switch ( $child['status'] ) {
+                    case 'done':
+                        $done++;
+                        break;
+                    case 'failed':
+                        $done++;
+                        $failed++;
+                        break;
+                    case 'running':
+                        $running++;
+                        break;
+                    default:
+                        $pending++;
+                        break;
+                }
+            }
+
+            $percent = $total > 0 ? (int) round( $done / $total * 100 ) : 0;
+
+            // Mettre à jour steps_data pour que la liste des jobs soit aussi à jour.
+            $steps                   = is_array( $job['steps_data'] ) ? $job['steps_data'] : [];
+            $steps['_bulk_total']    = $total;
+            $steps['_bulk_done']     = $done;
+            $steps['_bulk_failed']   = $failed;
+            $steps['_bulk_progress'] = $percent;
+            JobRepository::update_steps( $job['job_id'], $steps, [] );
+
             $response['progress'] = [
-                'total'    => $steps['_bulk_total']    ?? 0,
-                'done'     => $steps['_bulk_done']     ?? 0,
-                'failed'   => $steps['_bulk_failed']   ?? 0,
-                'percent'  => $steps['_bulk_progress'] ?? 0,
+                'total'   => $total,
+                'done'    => $done,
+                'failed'  => $failed,
+                'running' => $running,
+                'pending' => $pending,
+                'percent' => $percent,
             ];
         }
 

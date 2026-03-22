@@ -484,7 +484,17 @@
                         var bPct = p.percent || 0;
                         $('#wz_progress_bar').css('width', bPct + '%');
                         $('#wz_progress_pct').text(bPct ? bPct + '%' : '');
-                        $('#wz_progress_msg').text('Villes : ' + (p.done || 0) + '/' + (p.total || 0));
+
+                        var parts = [];
+                        if ((p.done || 0) > (p.failed || 0)) {
+                            parts.push((p.done - (p.failed || 0)) + ' terminé(s)');
+                        }
+                        if (p.running) { parts.push(p.running + ' en cours'); }
+                        if (p.pending) { parts.push(p.pending + ' en attente'); }
+                        if (p.failed)  { parts.push(p.failed  + ' échoué(s)'); }
+                        var msg = (p.done || 0) + '/' + (p.total || 0);
+                        if (parts.length) { msg += ' — ' + parts.join(', '); }
+                        $('#wz_progress_msg').text(msg);
                     }
 
                     // Logs.
