@@ -23,11 +23,25 @@ copy /Y "techrappy-seo.php"  "%BUILD_DIR%\%FOLDER%\" >nul
 copy /Y "index.php"          "%BUILD_DIR%\%FOLDER%\" >nul
 copy /Y "uninstall.php"      "%BUILD_DIR%\%FOLDER%\" >nul
 
-xcopy /E /I /Y "includes"  "%BUILD_DIR%\%FOLDER%\includes"  >nul
-xcopy /E /I /Y "views"     "%BUILD_DIR%\%FOLDER%\views"     >nul
-xcopy /E /I /Y "assets"    "%BUILD_DIR%\%FOLDER%\assets"    >nul
-xcopy /E /I /Y "database"  "%BUILD_DIR%\%FOLDER%\database"  >nul
-xcopy /E /I /Y "languages" "%BUILD_DIR%\%FOLDER%\languages" >nul
+xcopy /E /I /Y "includes"  "%BUILD_DIR%\%FOLDER%\includes"  >nul 2>&1
+xcopy /E /I /Y "views"     "%BUILD_DIR%\%FOLDER%\views"     >nul 2>&1
+xcopy /E /I /Y "assets"    "%BUILD_DIR%\%FOLDER%\assets"    >nul 2>&1
+xcopy /E /I /Y "database"  "%BUILD_DIR%\%FOLDER%\database"  >nul 2>&1
+xcopy /E /I /Y "languages" "%BUILD_DIR%\%FOLDER%\languages" >nul 2>&1
+
+REM Verification que les dossiers critiques ont bien ete copies.
+if not exist "%BUILD_DIR%\%FOLDER%\includes\Core\Plugin.php" (
+    echo ERREUR : includes\ non copie correctement. Verifiez le dossier source.
+    goto :error
+)
+if not exist "%BUILD_DIR%\%FOLDER%\views\admin\wizard\step-1-mode.php" (
+    echo ERREUR : views\ non copie correctement. Verifiez le dossier source.
+    goto :error
+)
+if not exist "%BUILD_DIR%\%FOLDER%\assets" (
+    echo ERREUR : assets\ non copie correctement. Verifiez le dossier source.
+    goto :error
+)
 
 echo [3/3] Creation des archives...
 
