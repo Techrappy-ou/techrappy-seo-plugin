@@ -34,28 +34,26 @@ echo [3/3] Creation des archives...
 if exist "%SAVED_CD%\%ZIP_WP%"     del /f /q "%SAVED_CD%\%ZIP_WP%"
 if exist "%SAVED_CD%\%ZIP_CPANEL%" del /f /q "%SAVED_CD%\%ZIP_CPANEL%"
 
-REM On se place dans le dossier build pour que Compress-Archive
-REM n'inclue pas les dossiers parents dans l'archive.
-pushd "%BUILD_DIR%"
-
-powershell -NoProfile -Command "Compress-Archive -Path '.\%FOLDER%' -DestinationPath '%SAVED_CD%\%ZIP_WP%' -Force"
-powershell -NoProfile -Command "Compress-Archive -Path '.\%FOLDER%\*' -DestinationPath '%SAVED_CD%\%ZIP_CPANEL%' -Force"
-
-popd
+REM Compress-Archive avec chemin absolu : seul le nom du dossier (techrappy-seo\)
+REM est inclus dans le zip, pas les dossiers parents. Structure correcte pour WP.
+powershell -NoProfile -Command "Compress-Archive -Path '%BUILD_DIR%\%FOLDER%' -DestinationPath '%SAVED_CD%\%ZIP_WP%' -Force"
+powershell -NoProfile -Command "Compress-Archive -Path '%BUILD_DIR%\%FOLDER%\*' -DestinationPath '%SAVED_CD%\%ZIP_CPANEL%' -Force"
 
 if %ERRORLEVEL% NEQ 0 goto :error
 
 echo.
 echo  OK ! Archives creees dans : %SAVED_CD%
 echo.
-echo  [1] %ZIP_WP% -- Premiere installation (site vierge) :
-echo      WordPress Admin -- Extensions -- Ajouter -- Telecharger
-echo      Choisir ce fichier -- Installer -- Activer
+echo  [1] %ZIP_WP% -- Installation via WordPress Admin :
+echo      IMPORTANT : si le plugin est deja installe, le desactiver et
+echo      le supprimer d'abord (Extensions -- Supprimer), sinon double
+echo      dossier et erreur "fichier introuvable".
+echo      Ensuite : Extensions -- Ajouter -- Telecharger -- Installer -- Activer
 echo.
-echo  [2] %ZIP_CPANEL% -- Mise a jour via Terminal cPanel :
+echo  [2] %ZIP_CPANEL% -- Mise a jour via Terminal cPanel (recommande) :
 echo      1. Uploader %ZIP_CPANEL% dans /wp-content/plugins/ via cPanel
 echo      2. Dans Terminal cPanel :
-echo         cd ~/chapeau-media.fr/wp-content/plugins
+echo         cd ~/NOM-DU-SITE/wp-content/plugins
 echo         rm -rf techrappy-seo
 echo         unzip %ZIP_CPANEL% -d techrappy-seo
 echo         rm %ZIP_CPANEL%
