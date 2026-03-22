@@ -190,6 +190,21 @@ $steps_labels = [
                 </td>
             </tr>
             <tr>
+                <th scope="row"><label for="wz_author_id"><?php esc_html_e( 'Auteur', 'techrappy-seo' ); ?></label></th>
+                <td>
+                    <?php
+                    wp_dropdown_users( [
+                        'id'               => 'wz_author_id',
+                        'name'             => 'wz_author_id',
+                        'show_option_none' => __( '— Utilisateur courant —', 'techrappy-seo' ),
+                        'option_none_value' => '0',
+                        'selected'         => 0,
+                        'who'              => 'authors',
+                    ] );
+                    ?>
+                </td>
+            </tr>
+            <tr>
                 <th scope="row"><label for="wz_parent_id"><?php esc_html_e( 'Page parente', 'techrappy-seo' ); ?></label></th>
                 <td>
                     <?php

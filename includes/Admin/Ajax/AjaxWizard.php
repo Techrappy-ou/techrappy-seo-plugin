@@ -112,6 +112,7 @@ class AjaxWizard {
             'slug_rule'        => sanitize_key( $post_data['slug_rule']       ?? 'from_keyword' ),
             'wp_params'        => [
                 'profession'     => $profession,
+                'author_id'      => absint( $post_data['author_id']      ?? 0 ),
                 'parent_id'      => absint( $post_data['parent_id']      ?? 0 ),
                 'category_id'    => absint( $post_data['category_id']    ?? 0 ),
                 'tags'           => array_map( 'absint', (array) ( $post_data['tags'] ?? [] ) ),

@@ -66,6 +66,11 @@ class PostWriter {
             // ici pour ne pas écraser une image déjà définie manuellement.
         ];
 
+        // Auteur (optionnel, 0 = utilisateur courant par défaut).
+        if ( ! empty( $wp_params['author_id'] ) ) {
+            $post_args['post_author'] = absint( $wp_params['author_id'] );
+        }
+
         // Parent page (optionnel).
         if ( ! empty( $wp_params['parent_id'] ) ) {
             $post_args['post_parent'] = absint( $wp_params['parent_id'] );
