@@ -305,9 +305,9 @@
             user_intent:      intentMode === 'manual' ? $('#wz_user_intent').val().trim() : '',
         };
 
+        $('#wz_done, #wz_failed').hide();
         showStep(TOTAL_STEPS);
         $('#wz_progress').show();
-        $('#wz_done, #wz_failed').hide();
         $('#wz_log_output').empty();
         renderPipelineSteps(null);
         appendLog('[INFO] Création du job…');
@@ -372,9 +372,9 @@
             data['cities[' + i + '][cp]']   = c.cp;
         });
 
+        $('#wz_done, #wz_failed').hide();
         showStep(TOTAL_STEPS);
         $('#wz_progress').show();
-        $('#wz_done, #wz_failed').hide();
         $('#wz_log_output').empty();
         appendLog('[INFO] Lancement bulk (' + selectedCities.length + ' villes)…');
 
@@ -436,9 +436,9 @@
             data['keywords[' + i + ']'] = kw;
         });
 
+        $('#wz_done, #wz_failed').hide();
         showStep(TOTAL_STEPS);
         $('#wz_progress').show();
-        $('#wz_done, #wz_failed').hide();
         $('#wz_log_output').empty();
         appendLog('[INFO] Lancement bulk mots-clés (' + keywords.length + ' mots-clés)…');
 
@@ -767,5 +767,19 @@
     }
 
     $(document).ready(init);
+
+    // Bfcache fix : quand l'utilisateur revient via le bouton retour, le
+    // navigateur restaure l'état DOM exact (DOMContentLoaded ne re-fire pas).
+    // On remet le wizard en état initial pour éviter d'afficher les résultats
+    // d'une génération précédente.
+    $(window).on('pageshow', function (e) {
+        var originalEvent = e.originalEvent || {};
+        if (originalEvent.persisted && $('#techrappy-wizard').length) {
+            stopPolling();
+            currentJobId = null;
+            resetStep6();
+            showStep(1);
+        }
+    });
 
 })(jQuery);
