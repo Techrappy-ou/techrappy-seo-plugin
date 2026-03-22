@@ -190,7 +190,7 @@ class AjaxPromptStudio {
             : $client->complete( $prompt, $system_prompt );
         $duration_ms = (int) round( ( microtime( true ) - $start ) * 1000 );
 
-        if ( null === $result && ! is_array( $result ) ) {
+        if ( null === $result || ! is_array( $result ) ) {
             wp_send_json_error( [ 'message' => __( 'Aucune réponse de l\'API OpenAI.', 'techrappy-seo' ) ], 502 );
         }
 

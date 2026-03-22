@@ -77,11 +77,11 @@ class AjaxLogs {
         }
 
         global $wpdb;
-        $table = $wpdb->prefix . 'techrappy_seo_jobs';
+        $table = esc_sql( $wpdb->prefix . 'techrappy_seo_jobs' );
 
         // Supprime uniquement les jobs terminés ou échoués (pas les pending/running).
         $deleted = $wpdb->query(
-            "DELETE FROM {$table} WHERE status IN ('done', 'done_with_errors', 'failed')"
+            "DELETE FROM `{$table}` WHERE status IN ('done', 'done_with_errors', 'failed')"
         );
 
         wp_send_json_success( [

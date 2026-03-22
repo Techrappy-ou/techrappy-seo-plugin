@@ -138,7 +138,7 @@ class PromptRepository {
         global $wpdb;
 
         $rows = $wpdb->get_results(
-            'SELECT * FROM ' . self::table() . ' WHERE is_active = 1 ORDER BY prompt_key ASC',
+            'SELECT * FROM `' . esc_sql( self::table() ) . '` WHERE is_active = 1 ORDER BY prompt_key ASC',
             ARRAY_A
         );
 
