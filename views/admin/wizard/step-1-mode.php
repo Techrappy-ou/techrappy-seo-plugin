@@ -352,7 +352,7 @@ $steps_labels = [
             <div id="wz_log_output" style="max-height:160px;overflow-y:auto;background:#f6f7f7;padding:8px;font-family:monospace;font-size:11px;border:1px solid #ddd;border-radius:4px;"></div>
         </div>
         <div id="wz_done" style="display:none;">
-            <div class="notice notice-success" style="padding:10px;">
+            <div class="techrappy-result techrappy-result-success">
                 <p><strong><?php esc_html_e( '✓ Génération terminée !', 'techrappy-seo' ); ?></strong></p>
                 <p>
                     <a id="wz_post_link" href="#" target="_blank" class="button button-primary">
@@ -368,7 +368,7 @@ $steps_labels = [
             </div>
         </div>
         <div id="wz_failed" style="display:none;">
-            <div class="notice notice-error" style="padding:10px;">
+            <div class="techrappy-result techrappy-result-error">
                 <p><strong><?php esc_html_e( '✗ La génération a échoué.', 'techrappy-seo' ); ?></strong></p>
                 <p><button type="button" class="button" id="wz_retry"><?php esc_html_e( 'Réessayer', 'techrappy-seo' ); ?></button></p>
             </div>

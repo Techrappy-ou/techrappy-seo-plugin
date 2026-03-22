@@ -24,3 +24,20 @@
     border: 1px solid #ddd;
     border-radius: 4px;
 }
+
+/* Résultats de génération — classes custom pour éviter l'interception
+   par WordPress admin JS ou d'autres plugins qui scannent .notice */
+.techrappy-result {
+    padding: 10px;
+    border-left: 4px solid #ccc;
+    background: #fff;
+    margin: 0;
+}
+.techrappy-result-success {
+    border-left-color: #00a32a;
+    background: #f0f6ec;
+}
+.techrappy-result-error {
+    border-left-color: #d63638;
+    background: #fcf0f1;
+}
