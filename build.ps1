@@ -3,17 +3,14 @@
 #  Usage direct : powershell -ExecutionPolicy Bypass -File build.ps1
 #  (aussi appele automatiquement par build.bat)
 ##############################################################
-param(
-    [string]$SourceDir = $PSScriptRoot,
-    [string]$OutDir    = $PSScriptRoot
-)
-
 Add-Type -Assembly System.IO.Compression
 Add-Type -Assembly System.IO.Compression.FileSystem
 
-$FOLDER   = 'techrappy-seo'
-$ZIP_WP   = Join-Path $OutDir 'techrappy-seo.zip'
-$ZIP_CP   = Join-Path $OutDir 'techrappy-seo-cpanel.zip'
+$SourceDir = $PSScriptRoot
+$OutDir    = $PSScriptRoot
+$FOLDER    = 'techrappy-seo'
+$ZIP_WP    = Join-Path $OutDir 'techrappy-seo.zip'
+$ZIP_CP    = Join-Path $OutDir 'techrappy-seo-cpanel.zip'
 
 # Fichiers et dossiers a inclure
 $FILES = @('techrappy-seo.php', 'index.php', 'uninstall.php')
