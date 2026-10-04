@@ -1,0 +1,252 @@
+<?php
+/**
+ * Orchestrateur du pipeline de génération de contenu.
+ *
+ * @package TechrappySEO\AI\Pipeline
+ */
+
+declare( strict_types=1 );
+
+namespace TechrappySEO\AI\Pipeline;
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+/**
+ * Class PipelineRunner
+ *
+ * Responsabilité : orchestrer l'exécution séquentielle des étapes du pipeline.
+ */
+class PipelineRunner {
+
+    /**
+     * Données du job en cours.
+     *
+     * @var array<string, mixed>
+     */
+    private array $job;
+
+    /**
+     * Logger associé au job.
+     *
+     * @var \TechrappySEO\Utils\Logger
+     */
+    private \TechrappySEO\Utils\Logger $logger;
+
+    /**
+     * UUID du job, utilisé pour sauvegarder les étapes en DB au fur et à mesure.
+     *
+     * @var string
+     */
+    private string $job_id;
+
+    /**
+     * Constructeur.
+     *
+     * @param array<string, mixed>       $job    Données du job.
+     * @param \TechrappySEO\Utils\Logger $logger Logger du job.
+     * @param string                     $job_id UUID du job (pour sauvegarde incrémentale).
+     */
+    public function __construct( array $job, \TechrappySEO\Utils\Logger $logger, string $job_id = '' ) {
+        $this->job    = $job;
+        $this->logger = $logger;
+        $this->job_id = $job_id;
+    }
+
+    /**
+     * Exécute toutes les étapes du pipeline dans l'ordre.
+     *
+     * @return array<string, mixed> Job mis à jour avec toutes les données de steps.
+     */
+    public function run(): array {
+        $this->logger->info( 'pipeline', 'Pipeline démarré.' );
+
+        // Charger le system prompt une seule fois pour toutes les étapes.
+        $manager                     = new \TechrappySEO\AI\PromptManager();
+        $system_data                 = $manager->get( 'system' );
+        $this->job['_system_prompt'] = $system_data['content'] ?? '';
+
+        // ── 1. Analyse d'intention ────────────────────────────────────────────
+        // Si l'utilisateur a fourni son intention manuellement, on l'injecte
+        // directement sans appel à l'API (gain de temps + économie de tokens).
+        if ( ! empty( $this->job['user_intent'] ) ) {
+            $existing = $this->job['steps']['intent'] ?? [];
+            if ( ! ( is_array( $existing ) && ( $existing['status'] ?? '' ) === 'ok' ) ) {
+                $this->job['steps']['intent'] = [
+                    'status' => 'ok',
+                    'data'   => [
+                        'intention_principale' => $this->job['user_intent'],
+                        '_source'              => 'user_provided',
+                    ],
+                ];
+                $this->logger->info( 'intent', 'Intention fournie par l\'utilisateur — étape IA ignorée.' );
+                $this->persist_steps();
+            }
+        } else {
+            $this->execute_step( 'intent', new Steps\StepIntent() );
+        }
+
+        // ── 2. Plan SEO ───────────────────────────────────────────────────────
+        $this->execute_step( 'plan', new Steps\StepPlan() );
+
+        // ── 2B. Liste des blocs ───────────────────────────────────────────────
+        $this->execute_step( 'blocks_list', new Steps\StepBlocksList() );
+
+        // ── 3. Introduction ───────────────────────────────────────────────────
+        $this->execute_step( 'intro', new Steps\StepIntro() );
+
+        // ── 4. Rédaction des blocs (boucle sur chaque bloc) ───────────────────
+        $this->execute_block_write_loop();
+
+        // ── 5. Conclusion + CTA ───────────────────────────────────────────────
+        $this->execute_step( 'conclusion_cta', new Steps\StepConclusion() );
+
+        // ── 6. Meta title + meta description ─────────────────────────────────
+        $this->execute_step( 'meta', new Steps\StepMeta() );
+
+        // ── 7. FAQ ────────────────────────────────────────────────────────────
+        $this->execute_step( 'faq', new Steps\StepFaq() );
+
+        // ── 8. Maillage interne ───────────────────────────────────────────────
+        $this->execute_step( 'internal_links', new Steps\StepInternalLinks() );
+
+        // ── 9. Anti-duplicate (bulk uniquement) ───────────────────────────────
+        if ( 'bulk' === ( $this->job['mode'] ?? '' ) ) {
+            $this->execute_step( 'anti_duplicate', new Steps\StepAntiDuplicate() );
+        }
+
+        // ── 10. QA (optionnel, gate avant publication) ────────────────────────
+        if ( \TechrappySEO\Settings\SettingsRepository::get( 'qa_gate_enabled', false ) ) {
+            $this->execute_step( 'qa', new Steps\StepQA() );
+        }
+
+        $this->logger->info( 'pipeline', 'Pipeline terminé.' );
+
+        return $this->job;
+    }
+
+    /**
+     * Retourne le job mis à jour après exécution.
+     *
+     * @return array<string, mixed>
+     */
+    public function get_job(): array {
+        return $this->job;
+    }
+
+    /**
+     * Exécute une étape et accumule son résultat dans le job.
+     * Sauvegarde le statut en DB avant et après chaque étape (jauge temps réel).
+     *
+     * @param string        $key  Clé de l'étape (ex: 'intent', 'plan').
+     * @param StepInterface $step Instance de l'étape.
+     *
+     * @return array<string, mixed> Données produites par l'étape.
+     */
+    private function execute_step( string $key, StepInterface $step ): array {
+        // Skip si l'étape a déjà réussi (mode reprise après crash).
+        $existing = $this->job['steps'][ $key ] ?? null;
+        if ( is_array( $existing ) && ( $existing['status'] ?? '' ) === 'ok' && ! empty( $existing['data'] ) ) {
+            $this->logger->info( $key, 'Étape déjà complétée — ignorée (reprise).' );
+            return $existing['data'];
+        }
+
+        $this->logger->info( $key, "Démarrage de l'étape." );
+        $this->job['steps'][ $key ] = [ 'status' => 'running', 'data' => [] ];
+
+        // Persister le statut "running" immédiatement pour la jauge frontend.
+        $this->persist_steps();
+
+        try {
+            $data = $step->run( $this->job, $this->logger );
+
+            if ( empty( $data ) ) {
+                $this->job['steps'][ $key ] = [ 'status' => 'error', 'data' => [] ];
+                $this->logger->error( $key, 'Étape échouée : données vides retournées.' );
+                $this->persist_steps();
+                return [];
+            }
+
+            $this->job['steps'][ $key ] = [ 'status' => 'ok', 'data' => $data ];
+            $this->logger->info( $key, 'Étape terminée avec succès.' );
+            $this->persist_steps();
+            return $data;
+
+        } catch ( \Throwable $e ) {
+            $this->job['steps'][ $key ] = [ 'status' => 'error', 'data' => [] ];
+            $this->logger->error( $key, 'Exception : ' . $e->getMessage() );
+            $this->persist_steps();
+            return [];
+        }
+    }
+
+    /**
+     * Sauvegarde les steps et les logs du job en base de données.
+     * Utilisé pour mettre à jour la jauge de progression en temps réel.
+     *
+     * @return void
+     */
+    private function persist_steps(): void {
+        if ( ! $this->job_id ) {
+            return;
+        }
+        \TechrappySEO\Jobs\JobRepository::update_steps(
+            $this->job_id,
+            $this->job['steps'],
+            $this->logger->get_logs()
+        );
+    }
+
+    /**
+     * Exécute StepWriteBlock pour chaque bloc de la liste.
+     *
+     * @return void
+     */
+    private function execute_block_write_loop(): void {
+        $blocs = $this->job['steps']['blocks_list']['data']['blocs'] ?? [];
+
+        if ( empty( $blocs ) ) {
+            $this->logger->warning( 'block_write', 'Aucun bloc à rédiger (blocks_list vide ou en erreur).' );
+            $this->job['steps']['blocks'] = [ 'status' => 'ok', 'data' => [] ];
+            return;
+        }
+
+        $step           = new Steps\StepWriteBlock();
+        $written_blocks = [];
+        $total          = count( $blocs );
+
+        // Marquer "blocks" comme en cours avant de démarrer la boucle.
+        $this->job['steps']['blocks'] = [ 'status' => 'running', 'data' => [] ];
+        $this->persist_steps();
+
+        foreach ( $blocs as $index => $bloc ) {
+            $n = $index + 1;
+            $this->logger->info( 'block_write', "Rédaction bloc {$n}/{$total} : " . ( $bloc['H2'] ?? '' ) );
+
+            // Injecter le bloc courant pour que StepWriteBlock y ait accès.
+            $this->job['_current_block'] = $bloc;
+            $data = $step->run( $this->job, $this->logger );
+
+            if ( ! empty( $data ) ) {
+                $written_blocks[] = $data;
+            } else {
+                $this->logger->error( 'block_write', "Échec du bloc {$n}." );
+            }
+
+            // Sauvegarder la progression de la boucle en DB (jauge temps réel).
+            $this->job['steps']['blocks'] = [ 'status' => 'running', 'data' => $written_blocks ];
+            $this->persist_steps();
+        }
+
+        // Nettoyer la clé temporaire.
+        unset( $this->job['_current_block'] );
+
+        $this->job['steps']['blocks'] = [
+            'status' => ! empty( $written_blocks ) ? 'ok' : 'error',
+            'data'   => $written_blocks,
+        ];
+
+        $this->logger->info( 'block_write', count( $written_blocks ) . "/{$total} blocs rédigés avec succès." );
+    }
+}
